@@ -40,7 +40,7 @@ Banco: Supabase (conta separada da do GitHub). Esquema em `supabase/migrations/0
 Mobile-first (360–1440 px), modo escuro, esqueleto de carregamento, estados vazio/erro/sem internet, acessibilidade (não depender só de cor). Conferir em celular e computador antes de entregar tela.
 
 ## Próximos passos
-0. Tela do mapa (conversa com atraso de digitação e botão voltar), tela do caso, `buildExam` com conjuntos como blocos contíguos, correção só no fim, revisão no resultado; amostras originais no repo (nunca dados reais); testes; conferir em 390 e 1280 px.
+0. ✓ Feito: mapa (`MapChat`, digitando… + Voltar), caso (`CaseText` com `sanitizeHtml`, lado a lado ≥1024 px), `buildExam` com conjuntos (total = MC + 2×conjuntos; MC completa se faltarem), correção dos conjuntos só no resultado, amostras em `src/data/sampleScenarios.ts`. Ao ligar o Supabase: chamar `generate_exam(cert, total − 2×conjuntos)` + `generate_exam_scenarios(cert)`.
 1. Ligar o Supabase (URL + anon key em `.env`, criar `src/lib/supabase.ts`).
 2. Login (Supabase Auth) e salvar tentativas em `attempts` / `attempt_answers`.
 3. Importar as questões reais (script local, chave de serviço, fora do Git).

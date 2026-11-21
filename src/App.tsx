@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Answers, AttemptRecord, Cert, Mode, Question } from './types';
+import type { Answers, AttemptRecord, Cert, Mode, Question, Scenario } from './types';
 import { EXAMS, buildExam, grade, minutesFor, passMark, pickQuestions } from './lib/exam';
 import { applyResults, errorIds, type ErrorBook } from './lib/errors';
 import { loadErrors, loadHistory, loadLastExam, loadTheme, saveAttempt, saveErrors, saveLastExam, saveTheme } from './lib/storage';
 import { loadQuestions } from './data/source';
 import { Home } from './components/Home';
-import { Quiz } from './components/Quiz';
+import { Quiz, type MapPaths } from './components/Quiz';
 import { Result } from './components/Result';
 import { Progress } from './components/Progress';
 import { Plan } from './components/Plan';
@@ -18,8 +18,8 @@ type Screen =
   | { name: 'train'; cert: Cert }
   | { name: 'loading' }
   | { name: 'error'; opts: StartOpts; message: string }
-  | { name: 'quiz'; opts: StartOpts; questions: Question[]; minutes: number; isSample: boolean }
-  | { name: 'result'; opts: StartOpts; questions: Question[]; answers: Answers; usedSeconds: number; isSample: boolean };
+  | { name: 'quiz'; opts: StartOpts; questions: Question[]; scenarios: Record<string, Scenario>; minutes: number; isSample: boolean }
+  | { name: 'result'; opts: StartOpts; questions: Question[]; scenarios: Record<string, Scenario>; paths: MapPaths; answers: Answers; usedSeconds: number; isSample: boolean };
 
 export function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
@@ -52,18 +52,20 @@ export function App() {
       try {
         const cfg = EXAMS[opts.cert];
         const bank = await loadQuestions(opts.cert);
+        const single = bank.questions.filter((q) => !q.scenarioCode);
         let questions: Question[];
         let minutes = 0;
         if (opts.mode === 'prova') {
           const last = loadLastExam(opts.cert);
-          questions = buildExam(cfg, bank.questions, { recentIds: new Set(last), previousOrder: last });
+          questions = buildExam(cfg, bank.questions, { recentIds: new Set(last), previousOrder: last, scenarios: bank.scenarios });
           saveLastExam(opts.cert, questions.map((q) => q.id));
           minutes = minutesFor(cfg, questions.length);
         } else if (opts.mode === 'treino') {
-          questions = pickQuestions(bank.questions.filter((q) => q.topic === opts.topic), opts.count);
+          // Questões de conjunto só fazem sentido com o mapa/caso: ficam fora do treino e da revisão de erros.
+          questions = pickQuestions(single.filter((q) => q.topic === opts.topic), opts.count);
         } else {
           const ids = new Set(errorIds(errors, opts.cert));
-          questions = pickQuestions(bank.questions.filter((q) => ids.has(q.id)), opts.count ?? 20);
+          questions = pickQuestions(single.filter((q) => ids.has(q.id)), opts.count ?? 20);
         }
         if (questions.length === 0) {
           setScreen({
@@ -76,7 +78,8 @@ export function App() {
           });
           return;
         }
-        setScreen({ name: 'quiz', opts, questions, minutes, isSample: bank.isSample });
+        const scenarios = Object.fromEntries(bank.scenarios.map((s) => [s.code, s]));
+        setScreen({ name: 'quiz', opts, questions, scenarios, minutes, isSample: bank.isSample });
       } catch {
         setScreen({ name: 'error', opts, message: 'Falha ao carregar as questões. Tente de novo.' });
       }
@@ -85,15 +88,15 @@ export function App() {
   );
 
   const finish = useCallback(
-    (opts: StartOpts, questions: Question[], answers: Answers, usedSeconds: number, isSample: boolean) => {
+    (opts: StartOpts, questions: Question[], scenarios: Record<string, Scenario>, paths: MapPaths, answers: Answers, usedSeconds: number, isSample: boolean) => {
       const mode: Mode = opts.mode;
       const cfg = EXAMS[opts.cert];
       const g = grade(questions, answers);
 
-      // Caderno de erros: vale para todos os modos.
+      // Caderno de erros: vale para todos os modos (só múltipla escolha; conjuntos dependem do mapa/caso).
       const nextErrors = applyResults(
         errors,
-        questions.map((q) => ({ id: q.id, cert: q.cert, correct: answers[q.id] === q.correctIndex })),
+        questions.filter((q) => !q.scenarioCode).map((q) => ({ id: q.id, cert: q.cert, correct: answers[q.id] === q.correctIndex })),
         mode,
         new Date().toISOString(),
       );
@@ -117,7 +120,7 @@ export function App() {
           }),
         );
       }
-      setScreen({ name: 'result', opts, questions, answers, usedSeconds, isSample });
+      setScreen({ name: 'result', opts, questions, scenarios, paths, answers, usedSeconds, isSample });
     },
     [errors],
   );
@@ -216,11 +219,12 @@ export function App() {
           <Quiz
             cfg={EXAMS[screen.opts.cert]}
             questions={screen.questions}
+            scenarios={screen.scenarios}
             mode={screen.opts.mode}
             topic={screen.opts.topic}
             minutes={screen.minutes}
             isSample={screen.isSample}
-            onFinish={(answers, used) => finish(screen.opts, screen.questions, answers, used, screen.isSample)}
+            onFinish={(answers, used, paths) => finish(screen.opts, screen.questions, screen.scenarios, paths, answers, used, screen.isSample)}
             onExit={home}
           />
         )}
@@ -229,6 +233,8 @@ export function App() {
           <Result
             cfg={EXAMS[screen.opts.cert]}
             questions={screen.questions}
+            scenarios={screen.scenarios}
+            paths={screen.paths}
             answers={screen.answers}
             usedSeconds={screen.usedSeconds}
             isSample={screen.isSample}

@@ -1,11 +1,15 @@
-import type { Answers, ExamConfig, Mode, Question } from '../types';
+import type { Answers, ExamConfig, Mode, Question, Scenario } from '../types';
 import { formatClock, grade, passMark } from '../lib/exam';
 import { pace, toStats } from '../lib/analysis';
 import { TopicBars } from './ui';
+import { CaseText, MapTranscript } from './Scenario';
+import type { MapPaths } from './Quiz';
 
 interface Props {
   cfg: ExamConfig;
   questions: Question[];
+  scenarios: Record<string, Scenario>;
+  paths: MapPaths;
   answers: Answers;
   usedSeconds: number;
   isSample: boolean;
@@ -21,11 +25,19 @@ interface Props {
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
-export function Result({ cfg, questions, answers, usedSeconds, isSample, size, onRetry, onHome, onPlan, onProgress, mode, topic, onTrain }: Props) {
+export function Result({ cfg, questions, scenarios, paths, answers, usedSeconds, isSample, size, onRetry, onHome, onPlan, onProgress, mode, topic, onTrain }: Props) {
   const g = grade(questions, answers);
   const mark = passMark(cfg, size);
   const passed = g.correct >= mark;
-  const wrong = questions.filter((q) => answers[q.id] !== q.correctIndex);
+  const wrong = questions.filter((q) => !q.scenarioCode && answers[q.id] !== q.correctIndex);
+  const setQs = questions.filter((q) => q.scenarioCode);
+  const setCorrect = setQs.filter((q) => answers[q.id] === q.correctIndex).length;
+  const sets: { code: string; qs: Question[] }[] = [];
+  for (const q of setQs) {
+    const last = sets[sets.length - 1];
+    if (last?.code === q.scenarioCode) last.qs.push(q);
+    else sets.push({ code: q.scenarioCode as string, qs: [q] });
+  }
   const stats = toStats(g.byTopic);
   const focus = stats.filter((s) => s.level !== 'ok').slice(0, 3);
   const answered = Object.keys(answers).length;
@@ -103,8 +115,61 @@ export function Result({ cfg, questions, answers, usedSeconds, isSample, size, o
         </section>
       )}
 
+      {sets.length > 0 && (
+        <section className="card" aria-labelledby="sets-title">
+          <h2 id="sets-title">
+            Correção dos conjuntos ({setCorrect}/{setQs.length})
+          </h2>
+          <p className="muted small">Mapas de decisão e casos: a correção só aparece agora, no fim da prova.</p>
+          <ol className="review sets-review">
+            {sets.map(({ code, qs }) => {
+              const sc = scenarios[code];
+              return (
+                <li key={code}>
+                  <p className="set-title">
+                    <span className="tag">{sc?.kind === 'mapa' ? 'Mapa de decisão' : 'Caso'}</span> <strong>{sc?.title ?? code}</strong>
+                  </p>
+                  {sc && (
+                    <details className="set-base">
+                      <summary>{sc.kind === 'mapa' ? 'Rever a conversa' : 'Rever o texto-base'}</summary>
+                      {sc.kind === 'mapa' ? <MapTranscript body={sc.body} path={paths[code] ?? []} /> : <CaseText html={sc.body.html} />}
+                    </details>
+                  )}
+                  <ol className="set-qs">
+                    {qs.map((q) => {
+                      const mine = answers[q.id];
+                      const ok = mine === q.correctIndex;
+                      return (
+                        <li key={q.id}>
+                          <p className="q-statement small-q">
+                            <span className={ok ? 'tag tag-ok' : 'tag tag-bad'}>{ok ? '✓ Acertou' : '✗ Errou'}</span> {q.statement}
+                          </p>
+                          {!ok && (
+                            <p>
+                              <span className="tag tag-bad">
+                                Sua resposta: {mine === undefined ? 'em branco' : `${LETTERS[mine]}. ${q.options[mine]}`}
+                              </span>
+                            </p>
+                          )}
+                          <p>
+                            <span className="tag tag-ok">
+                              Correta: {LETTERS[q.correctIndex]}. {q.options[q.correctIndex]}
+                            </span>
+                          </p>
+                          <p className="explain">{q.explanation}</p>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      )}
+
       <section className="card" aria-labelledby="rev-title">
-        <h2 id="rev-title">Revisão dos erros ({wrong.length})</h2>
+        <h2 id="rev-title">Revisão dos erros{setQs.length > 0 && " de múltipla escolha"} ({wrong.length})</h2>
         {wrong.length === 0 ? (
           <div className="empty-inline">
             <p>Você não errou nenhuma questão. Excelente!</p>

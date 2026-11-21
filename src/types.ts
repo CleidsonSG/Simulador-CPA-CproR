@@ -23,7 +23,45 @@ export interface Question {
   pdCode?: string;
   /** Quem escreveu a explicação: a própria Anbima ou a IA. */
   explanationSource?: 'anbima' | 'ia';
+  /** Questão de conjunto (mapa de decisão ou caso): código do cenário e posição (1 ou 2). */
+  scenarioCode?: string;
+  scenarioPos?: number;
 }
+
+/** Nó do mapa de decisão: fala do cliente e 4 respostas possíveis do gerente (sem gabarito). */
+export interface MapNode {
+  client: string;
+  /** Pergunta-guia do nó (opcional; senão vale a pergunta geral do mapa). */
+  pergunta?: string;
+  options: string[];
+  /** next[i] corresponde a options[i]: fala do gerente (senão, a própria opção) e chave do próximo nó. */
+  next: { gerente?: string; child?: string | null }[];
+  end?: boolean;
+  endText?: string;
+}
+
+export interface MapBody {
+  intro: string;
+  pergunta: string;
+  rootKey: string;
+  nodes: Record<string, MapNode>;
+}
+
+export interface CaseBody {
+  /** Texto-base com tabelas. Sempre passa por sanitizeHtml antes de ir para a tela. */
+  html: string;
+}
+
+/** Conjunto da prova (tabela question_scenarios): um mapa ou um caso + 2 questões em `questions`. */
+export type Scenario = {
+  code: string;
+  cert: Cert;
+  year: number;
+  topic: string;
+  title: string;
+  pdCode?: string;
+  source: 'anbima' | 'ia' | 'exemplo';
+} & ({ kind: 'mapa'; body: MapBody } | { kind: 'caso'; body: CaseBody });
 
 export interface ExamConfig {
   cert: Cert;
@@ -35,6 +73,8 @@ export interface ExamConfig {
   passPct: number;
   /** Duração da prova real, em minutos. */
   minutes: number;
+  /** Conjuntos (mapas/casos) por prova, 2 questões cada, dentro do total: CPA 5, C-Pro R 7, C-Pro I 5. */
+  sets: number;
 }
 
 export type Answers = Record<string, number>;

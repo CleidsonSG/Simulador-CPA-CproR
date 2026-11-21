@@ -1,4 +1,4 @@
-import type { Answers, Cert, ExamConfig, GradeResult, Question } from '../types';
+import type { Answers, Cert, ExamConfig, GradeResult, Question, Scenario } from '../types';
 import { MACROS, macroOf } from '../data/matrix';
 
 /** Regras oficiais (Edital Anbima, rev. nov/2025): CPA 50q/70%, C-Pro R 45q/71%, C-Pro I 40q/70%, 2h30. */
@@ -10,6 +10,7 @@ export const EXAMS: Record<Cert, ExamConfig> = {
     total: 50,
     passPct: 0.7,
     minutes: 150,
+    sets: 5,
   },
   CPRO_R: {
     cert: 'CPRO_R',
@@ -18,6 +19,7 @@ export const EXAMS: Record<Cert, ExamConfig> = {
     total: 45,
     passPct: 0.71,
     minutes: 150,
+    sets: 7,
   },
   CPRO_I: {
     cert: 'CPRO_I',
@@ -26,6 +28,7 @@ export const EXAMS: Record<Cert, ExamConfig> = {
     total: 40,
     passPct: 0.7,
     minutes: 150,
+    sets: 5,
   },
 };
 
@@ -66,8 +69,11 @@ export function shuffleOptions(q: Question, rng: () => number = Math.random): Qu
 /**
  * Apresentação da questão. As questões da Anbima são mostradas EXATAMENTE como no original:
  * nem as alternativas mudam de posição. Só as demais (ia/exemplo) podem ter as alternativas embaralhadas.
+ * Exceção: questões de conjunto (mapa/caso). O portal da Anbima grava o gabarito sempre na alternativa A,
+ * então a ordem é embaralhada só na exibição; o banco continua intacto.
  */
 export function present(q: Question, rng: () => number = Math.random): Question {
+  if (q.scenarioCode) return shuffleOptions(q, rng);
   return q.source === 'anbima' ? q : shuffleOptions(q, rng);
 }
 
@@ -76,31 +82,49 @@ export interface BuildOpts {
   recentIds?: ReadonlySet<string>;
   /** Ordem da tentativa anterior: a nova ordem nunca será idêntica a ela. */
   previousOrder?: readonly string[];
+  /** Mapas de decisão e casos disponíveis (as 2 questões de cada um vêm em `bank`). */
+  scenarios?: readonly Scenario[];
   rng?: () => number;
 }
 
+export interface ExamSet {
+  scenario: Scenario;
+  /** As 2 questões do conjunto, na ordem (scenarioPos 1 e 2). */
+  questions: [Question, Question];
+}
+
+/** Conjuntos completos da certificação: cenário + exatamente as questões de posição 1 e 2. */
+export function completeSets(cert: Cert, bank: readonly Question[], scenarios: readonly Scenario[]): ExamSet[] {
+  const byCode = new Map<string, Question[]>();
+  for (const q of bank) {
+    if (q.cert !== cert || !q.scenarioCode) continue;
+    byCode.set(q.scenarioCode, [...(byCode.get(q.scenarioCode) ?? []), q]);
+  }
+  const out: ExamSet[] = [];
+  for (const s of scenarios) {
+    if (s.cert !== cert) continue;
+    const qs = [...(byCode.get(s.code) ?? [])].sort((a, b) => (a.scenarioPos ?? 0) - (b.scenarioPos ?? 0));
+    if (qs.length === 2 && qs[0].scenarioPos === 1 && qs[1].scenarioPos === 2) out.push({ scenario: s, questions: [qs[0], qs[1]] });
+  }
+  return out;
+}
+
 /**
- * Monta a prova de forma que todas as tentativas, de qualquer usuário, tenham a mesma "cara":
+ * Sorteio balanceado das questões de múltipla escolha:
  *  - nº de questões por macrotema segue a proporção oficial do Programa Detalhado;
  *  - dentro do macrotema, os temas entram de forma proporcional;
- *  - questões da última tentativa ficam por último na fila de sorteio;
- *  - a ordem final é sempre embaralhada e diferente da anterior.
+ *  - questões da última tentativa ficam por último na fila de sorteio.
  * Técnica: cada questão recebe uma "hora de chegada" (posição na fila do macrotema ÷ cota do
  * macrotema); pegam-se as N primeiras. Resultado: cotas proporcionais, com o acaso decidindo quem entra.
  */
-export function buildExam(cfg: ExamConfig, bank: readonly Question[], opts: BuildOpts = {}): Question[] {
-  const rng = opts.rng ?? Math.random;
-  const recent = opts.recentIds ?? new Set<string>();
-  const pool = bank.filter((q) => q.cert === cfg.cert);
-  const size = examSize(cfg, pool.length);
-  if (size === 0) return [];
-
+function pickBalanced(cert: Cert, pool: readonly Question[], size: number, recent: ReadonlySet<string>, rng: () => number): Question[] {
+  if (size <= 0) return [];
   const macros = new Map<number, Question[]>();
   for (const q of pool) {
     const m = macroOf(q.pdCode) ?? 0;
     macros.set(m, [...(macros.get(m) ?? []), q]);
   }
-  const known = MACROS[cfg.cert];
+  const known = MACROS[cert];
   const share = (m: number) => (m === 0 ? (macros.size === 1 ? 1 : 0.25) : (known.find((k) => k.id === m)?.share ?? 0.25));
 
   const keyed: { q: Question; key: number }[] = [];
@@ -117,12 +141,47 @@ export function buildExam(cfg: ExamConfig, bank: readonly Question[], opts: Buil
     rated.sort((a, b) => Number(recent.has(a.q.id)) - Number(recent.has(b.q.id)) || a.r - b.r);
     rated.forEach(({ q }, i) => keyed.push({ q, key: (i + 1 - rng()) / (size * share(m)) }));
   }
-  const chosen = keyed.sort((a, b) => a.key - b.key).slice(0, size).map((k) => k.q);
+  return keyed.sort((a, b) => a.key - b.key).slice(0, size).map((k) => k.q);
+}
 
-  let order = shuffle(chosen, rng);
+/**
+ * Monta a prova de forma que todas as tentativas, de qualquer usuário, tenham a mesma "cara":
+ *  - sorteia `cfg.sets` conjuntos (mapas/casos) completos, priorizando os não vistos na última tentativa;
+ *  - completa o total da prova com múltipla escolha balanceada (total − 2 × conjuntos);
+ *    se faltarem conjuntos no banco, a múltipla escolha cobre a diferença;
+ *  - cada conjunto é um bloco contíguo (questão 1 e depois a 2); os blocos são embaralhados com as demais;
+ *  - a ordem final é sempre diferente da anterior.
+ */
+export function buildExam(cfg: ExamConfig, bank: readonly Question[], opts: BuildOpts = {}): Question[] {
+  const rng = opts.rng ?? Math.random;
+  const recent = opts.recentIds ?? new Set<string>();
+
+  const seen = (s: ExamSet) => s.questions.some((q) => recent.has(q.id));
+  const sets = shuffle(completeSets(cfg.cert, bank, opts.scenarios ?? []), rng)
+    .sort((a, b) => Number(seen(a)) - Number(seen(b)))
+    .slice(0, cfg.sets);
+
+  const mcPool = bank.filter((q) => q.cert === cfg.cert && !q.scenarioCode);
+  const mcSize = examSize({ ...cfg, total: Math.max(0, cfg.total - 2 * sets.length) }, mcPool.length);
+  const mc = pickBalanced(cfg.cert, mcPool, mcSize, recent, rng);
+
+  const blocks: Question[][] = [...mc.map((q) => [q]), ...sets.map((s) => [...s.questions])];
+  if (blocks.length === 0) return [];
+  let order = shuffle(blocks, rng).flat();
   const prev = opts.previousOrder;
-  for (let i = 0; i < 8 && prev && order.length > 1 && order.every((q, j) => q.id === prev[j]); i++) order = shuffle(chosen, rng);
+  for (let i = 0; i < 8 && prev && blocks.length > 1 && order.every((q, j) => q.id === prev[j]); i++) order = shuffle(blocks, rng).flat();
   return order.map((q) => present(q, rng));
+}
+
+/** Índices (início e fim, inclusivos) do bloco de conjunto que contém a questão `index`; null se for múltipla escolha. */
+export function setRange(questions: readonly Question[], index: number): { start: number; end: number } | null {
+  const code = questions[index]?.scenarioCode;
+  if (!code) return null;
+  let start = index;
+  let end = index;
+  while (start > 0 && questions[start - 1].scenarioCode === code) start--;
+  while (end < questions.length - 1 && questions[end + 1].scenarioCode === code) end++;
+  return { start, end };
 }
 
 /** Sorteia até `count` questões (todas, se count for omitido) e embaralha as alternativas. */
