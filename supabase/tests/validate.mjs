@@ -21,7 +21,7 @@ await db.exec(`
   alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
   alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
 `);
-for (const f of ['0001_init.sql', '0002_integridade_recursos_quarentena.sql']) {
+for (const f of ['0001_init.sql', '0002_integridade_recursos_quarentena.sql', '0003_classificacao_editavel.sql']) {
   await db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
 }
 await db.exec(`grant all on all tables in schema public to anon, authenticated, service_role;`);
@@ -54,6 +54,8 @@ const sample = (await q1(`select id, content_hash from public.questions where so
 ok(!!sample.content_hash, 'carimbo de integridade gravado na inserção');
 await rejects(() => db.query(`update public.questions set statement = 'alterado' where id = $1`, [sample.id]), 'não deixa alterar o enunciado');
 await rejects(() => db.query(`update public.questions set options = '["x","y","z","w"]' where id = $1`, [sample.id]), 'não deixa alterar as alternativas');
+await db.query(`update public.questions set pd_code = '2.9', topic = 'Tópico reclassificado' where id = $1`, [sample.id]);
+ok(true, 'permite corrigir a classificação (PD e tópico)');
 await rejects(() => db.query(`update public.questions set correct_index = 3 where id = $1`, [sample.id]), 'não deixa alterar o gabarito');
 await rejects(() => db.query(`delete from public.questions where id = $1`, [sample.id]), 'não deixa apagar direto');
 await db.query(`update public.questions set explanation = 'explicação da IA', explanation_source = 'ia' where id = $1`, [sample.id]);
