@@ -49,4 +49,7 @@ export interface AttemptRecord {
   total: number;
   passMark: number;
   passed: boolean;
+  /** Tempo gasto (s) e desempenho por tema; ausentes em registros antigos. */
+  usedSeconds?: number;
+  byTopic?: TopicScore[];
 }

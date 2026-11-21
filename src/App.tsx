@@ -6,9 +6,13 @@ import { loadQuestions } from './data/source';
 import { Home } from './components/Home';
 import { Quiz } from './components/Quiz';
 import { Result } from './components/Result';
+import { Progress } from './components/Progress';
+import { Plan } from './components/Plan';
 
 type Screen =
   | { name: 'home' }
+  | { name: 'progress'; cert: Cert }
+  | { name: 'plan'; cert: Cert }
   | { name: 'loading'; cert: Cert }
   | { name: 'error'; cert: Cert }
   | { name: 'quiz'; cert: Cert; questions: Question[]; minutes: number; isSample: boolean }
@@ -66,6 +70,8 @@ export function App() {
           total: g.total,
           passMark: mark,
           passed: g.correct >= mark,
+          usedSeconds,
+          byTopic: g.byTopic,
         }),
       );
       setScreen({ name: 'result', cert, questions, answers, usedSeconds, isSample });
@@ -97,7 +103,32 @@ export function App() {
       )}
 
       <main className="main">
-        {screen.name === 'home' && <Home history={history} onStart={start} />}
+        {screen.name === 'home' && (
+          <Home
+            history={history}
+            onStart={start}
+            onProgress={() => setScreen({ name: 'progress', cert: history[0]?.cert ?? 'CPA' })}
+            onPlan={() => setScreen({ name: 'plan', cert: history[0]?.cert ?? 'CPA' })}
+          />
+        )}
+
+        {screen.name === 'progress' && (
+          <Progress
+            history={history}
+            initialCert={screen.cert}
+            onPlan={(cert) => setScreen({ name: 'plan', cert })}
+            onBack={() => setScreen({ name: 'home' })}
+          />
+        )}
+
+        {screen.name === 'plan' && (
+          <Plan
+            cert={screen.cert}
+            history={history}
+            onCert={(cert) => setScreen({ name: 'plan', cert })}
+            onBack={() => setScreen({ name: 'progress', cert: screen.cert })}
+          />
+        )}
 
         {screen.name === 'loading' && (
           <div className="card skeleton-card" aria-busy="true" aria-label="Carregando questões">
@@ -142,6 +173,8 @@ export function App() {
             size={examSize(EXAMS[screen.cert], screen.questions.length)}
             onRetry={() => start(screen.cert)}
             onHome={() => setScreen({ name: 'home' })}
+            onPlan={() => setScreen({ name: 'plan', cert: screen.cert })}
+            onProgress={() => setScreen({ name: 'progress', cert: screen.cert })}
           />
         )}
       </main>

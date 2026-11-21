@@ -4,6 +4,8 @@ import { EXAMS, formatClock } from '../lib/exam';
 interface Props {
   history: AttemptRecord[];
   onStart: (cert: Cert) => void;
+  onProgress: () => void;
+  onPlan: () => void;
 }
 
 const DETAILS: Record<Cert, string[]> = {
@@ -11,7 +13,7 @@ const DETAILS: Record<Cert, string[]> = {
   CPRO_R: ['45 questões', '2h30 de prova', 'Aprovação: 32 acertos (71%)'],
 };
 
-export function Home({ history, onStart }: Props) {
+export function Home({ history, onStart, onProgress, onPlan }: Props) {
   return (
     <>
       <section className="hero">
@@ -34,6 +36,17 @@ export function Home({ history, onStart }: Props) {
             </button>
           </article>
         ))}
+      </section>
+
+      <section className="grid" aria-label="Acompanhamento">
+        <button className="card tool" onClick={onProgress}>
+          <strong>📈 Meu desempenho</strong>
+          <span className="muted small">Evolução, temas fracos e indicador de prontidão</span>
+        </button>
+        <button className="card tool" onClick={onPlan}>
+          <strong>🗓 Plano de estudos</strong>
+          <span className="muted small">Ciclo semanal por tema, para imprimir ou salvar em PDF</span>
+        </button>
       </section>
 
       <section className="card" aria-labelledby="hist-title">

@@ -24,6 +24,32 @@ export function saveAttempt(a: AttemptRecord): AttemptRecord[] {
   return next;
 }
 
+export interface PlanPrefs {
+  daysPerWeek: number;
+  minutesPerDay: number;
+  examDate: string;
+}
+const PLAN_KEY = 'simulador-anbima:plano:v1';
+const DEFAULT_PREFS: PlanPrefs = { daysPerWeek: 5, minutesPerDay: 60, examDate: '' };
+
+export function loadPlanPrefs(): PlanPrefs {
+  try {
+    const raw = localStorage.getItem(PLAN_KEY);
+    if (raw) return { ...DEFAULT_PREFS, ...(JSON.parse(raw) as Partial<PlanPrefs>) };
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_PREFS;
+}
+
+export function savePlanPrefs(p: PlanPrefs): void {
+  try {
+    localStorage.setItem(PLAN_KEY, JSON.stringify(p));
+  } catch {
+    /* ignore */
+  }
+}
+
 export function loadTheme(): 'light' | 'dark' {
   try {
     const t = localStorage.getItem(THEME_KEY);
