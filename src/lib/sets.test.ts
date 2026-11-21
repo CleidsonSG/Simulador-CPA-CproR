@@ -118,6 +118,87 @@ describe('conjuntos (mapas e casos) na prova', () => {
   });
 });
 
+/**
+ * Quantidades do banco real em 21/11/2026 (só as contagens; nenhum conteúdo real).
+ * Múltipla escolha por macrotema 1–4 e nº de conjuntos completos publicados.
+ */
+const REAL: Record<Cert, { mc: [number, number, number, number]; sets: number }> = {
+  CPA: { mc: [22, 48, 36, 5], sets: 5 },
+  CPRO_R: { mc: [5, 10, 23, 5], sets: 6 },
+  CPRO_I: { mc: [22, 6, 16, 8], sets: 6 },
+};
+
+function realBank(cert: Cert) {
+  const qs: Question[] = [];
+  REAL[cert].mc.forEach((n, m) => {
+    for (let i = 0; i < n; i++) qs.push(mc(`${cert}-m${m + 1}-${i}`, cert, `${m + 1}.${(i % 3) + 1}`));
+  });
+  const scenarios: Scenario[] = [];
+  for (let s = 0; s < REAL[cert].sets; s++) {
+    const code = `${cert}-R${s}`;
+    scenarios.push(scen(code, cert, s % 2 ? 'caso' : 'mapa'));
+    qs.push(setQ(code, cert, 1), setQ(code, cert, 2));
+  }
+  return { qs, scenarios };
+}
+
+describe('banco com as quantidades reais: repete entre provas, nunca dentro da mesma', () => {
+  it.each(['CPA', 'CPRO_R', 'CPRO_I'] as const)('%s: 10 provas seguidas, todas completas e sem repetição interna', (cert) => {
+    const cfg = EXAMS[cert];
+    const { qs, scenarios } = realBank(cert);
+    let last: string[] = [];
+    let reused = 0;
+    for (let t = 1; t <= 10; t++) {
+      const exam = buildExam(cfg, qs, { scenarios, recentIds: new Set(last), previousOrder: last, rng: seeded(100 + t) });
+      const ids = exam.map((q) => q.id);
+      expect(exam).toHaveLength(cfg.total); // 50 / 45 / 40
+      expect(new Set(ids).size).toBe(ids.length); // nenhuma questão duas vezes na mesma prova
+      expect(new Set(exam.map((q) => q.scenarioCode).filter(Boolean)).size).toBe(Math.min(cfg.sets, REAL[cert].sets));
+      reused += ids.filter((id) => last.includes(id)).length;
+      last = ids;
+    }
+    // Banco pequeno: completar a prova exige reaproveitar questões das provas anteriores.
+    expect(reused).toBeGreaterThan(0);
+  });
+
+  it('C-Pro R: com 6 conjuntos para 7, a múltipla escolha cobre (33 + 12 = 45)', () => {
+    const { qs, scenarios } = realBank('CPRO_R');
+    const exam = buildExam(EXAMS.CPRO_R, qs, { scenarios, rng: seeded(9) });
+    expect(exam.filter((q) => !q.scenarioCode)).toHaveLength(33);
+    expect(exam.filter((q) => q.scenarioCode)).toHaveLength(12);
+  });
+
+  it('macrotema com menos questões que a cota entra com todas as que tem; os outros completam', () => {
+    const { qs, scenarios } = realBank('CPRO_R');
+    for (let s = 1; s <= 10; s++) {
+      const exam = buildExam(EXAMS.CPRO_R, qs, { scenarios, rng: seeded(s) });
+      const m1 = exam.filter((q) => !q.scenarioCode && q.pdCode?.startsWith('1.')).length;
+      expect(m1).toBe(5); // as 5 que existem (cota seria 6–7)
+    }
+  });
+
+  it.each(['CPA', 'CPRO_R', 'CPRO_I'] as const)('%s: só repete questão de um macrotema depois de usar todas as novas dele', (cert) => {
+    const { qs, scenarios } = realBank(cert);
+    for (let s = 1; s <= 10; s++) {
+      const first = buildExam(EXAMS[cert], qs, { scenarios, rng: seeded(s) });
+      const seen = new Set(first.map((q) => q.id));
+      const second = buildExam(EXAMS[cert], qs, { scenarios, recentIds: seen, rng: seeded(s + 50) });
+      const inSecond = new Set(second.map((q) => q.id));
+      for (const rep of second.filter((q) => !q.scenarioCode && seen.has(q.id))) {
+        const macro = rep.pdCode!.split('.')[0];
+        const freshSameMacro = qs.filter((q) => !q.scenarioCode && !seen.has(q.id) && q.pdCode!.split('.')[0] === macro);
+        expect(freshSameMacro.every((q) => inSecond.has(q.id))).toBe(true);
+      }
+      // o mesmo vale para os conjuntos
+      const repSets = new Set(second.filter((q) => q.scenarioCode && seen.has(q.id)).map((q) => q.scenarioCode));
+      if (repSets.size) {
+        const freshSets = scenarios.filter((sc) => !first.some((q) => q.scenarioCode === sc.code));
+        expect(freshSets.every((sc) => second.some((q) => q.scenarioCode === sc.code))).toBe(true);
+      }
+    }
+  });
+});
+
 describe('amostras de conjunto do repositório', () => {
   it('são de exemplo, completas e com 4 alternativas', () => {
     for (const s of SAMPLE_SCENARIOS) expect(s.source).toBe('exemplo');
