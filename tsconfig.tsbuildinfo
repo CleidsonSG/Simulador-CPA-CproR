@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/types.ts","./src/components/Home.tsx","./src/components/Quiz.tsx","./src/components/Result.tsx","./src/data/sampleQuestions.ts","./src/data/source.ts","./src/lib/exam.test.ts","./src/lib/exam.ts","./src/lib/storage.ts"],"version":"5.9.3"}

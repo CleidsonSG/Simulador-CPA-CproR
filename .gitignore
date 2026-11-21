@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+# Questões reais da Anbima NUNCA vão para o repositório (ele é público).
+data-private/
