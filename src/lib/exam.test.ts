@@ -12,6 +12,7 @@ const mk = (id: string, cert: Question['cert'], topic = 'T'): Question => ({
   options: ['a', 'b', 'c', 'd'],
   correctIndex: 1,
   explanation: 'x',
+  source: 'exemplo',
 });
 
 describe('regras oficiais', () => {

@@ -34,7 +34,7 @@ describe('caderno de erros', () => {
 });
 
 describe('treino e pesos', () => {
-  const q = (id: string): Question => ({ id, cert: 'CPA', topic: 'T', difficulty: 'Baixa', year: 2026, statement: id, options: ['a', 'b', 'c', 'd'], correctIndex: 0, explanation: '' });
+  const q = (id: string): Question => ({ id, cert: 'CPA', topic: 'T', difficulty: 'Baixa', year: 2026, statement: id, options: ['a', 'b', 'c', 'd'], correctIndex: 0, explanation: '', source: 'exemplo' });
   it('pickQuestions respeita o limite e mantém o gabarito', () => {
     const r = pickQuestions([q('1'), q('2'), q('3')], 2);
     expect(r).toHaveLength(2);

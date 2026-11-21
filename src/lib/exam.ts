@@ -1,4 +1,5 @@
 import type { Answers, Cert, ExamConfig, GradeResult, Question } from '../types';
+import { MACROS, macroOf } from '../data/matrix';
 
 /** Regras oficiais (Edital Anbima, rev. nov/2025): CPA 50q/70%, C-Pro R 45q/71%, 2h30. */
 export const EXAMS: Record<Cert, ExamConfig> = {
@@ -54,20 +55,72 @@ export function shuffleOptions(q: Question, rng: () => number = Math.random): Qu
   };
 }
 
-export function buildExam(
-  cfg: ExamConfig,
-  bank: readonly Question[],
-  rng: () => number = Math.random,
-): Question[] {
+/**
+ * Apresentação da questão. As questões da Anbima são mostradas EXATAMENTE como no original:
+ * nem as alternativas mudam de posição. Só as demais (ia/exemplo) podem ter as alternativas embaralhadas.
+ */
+export function present(q: Question, rng: () => number = Math.random): Question {
+  return q.source === 'anbima' ? q : shuffleOptions(q, rng);
+}
+
+export interface BuildOpts {
+  /** Questões da tentativa anterior: só entram de novo se faltar questão nova. */
+  recentIds?: ReadonlySet<string>;
+  /** Ordem da tentativa anterior: a nova ordem nunca será idêntica a ela. */
+  previousOrder?: readonly string[];
+  rng?: () => number;
+}
+
+/**
+ * Monta a prova de forma que todas as tentativas, de qualquer usuário, tenham a mesma "cara":
+ *  - nº de questões por macrotema segue a proporção oficial do Programa Detalhado;
+ *  - dentro do macrotema, os temas entram de forma proporcional;
+ *  - questões da última tentativa ficam por último na fila de sorteio;
+ *  - a ordem final é sempre embaralhada e diferente da anterior.
+ * Técnica: cada questão recebe uma "hora de chegada" (posição na fila do macrotema ÷ cota do
+ * macrotema); pegam-se as N primeiras. Resultado: cotas proporcionais, com o acaso decidindo quem entra.
+ */
+export function buildExam(cfg: ExamConfig, bank: readonly Question[], opts: BuildOpts = {}): Question[] {
+  const rng = opts.rng ?? Math.random;
+  const recent = opts.recentIds ?? new Set<string>();
   const pool = bank.filter((q) => q.cert === cfg.cert);
   const size = examSize(cfg, pool.length);
-  return shuffle(pool, rng).slice(0, size).map((q) => shuffleOptions(q, rng));
+  if (size === 0) return [];
+
+  const macros = new Map<number, Question[]>();
+  for (const q of pool) {
+    const m = macroOf(q.pdCode) ?? 0;
+    macros.set(m, [...(macros.get(m) ?? []), q]);
+  }
+  const known = MACROS[cfg.cert];
+  const share = (m: number) => (m === 0 ? (macros.size === 1 ? 1 : 0.25) : (known.find((k) => k.id === m)?.share ?? 0.25));
+
+  const keyed: { q: Question; key: number }[] = [];
+  for (const [m, qs] of macros) {
+    // 1) fila por tema: não vistas primeiro, depois sorteio
+    const byTopic = new Map<string, Question[]>();
+    for (const q of qs) byTopic.set(q.topic, [...(byTopic.get(q.topic) ?? []), q]);
+    const rated: { q: Question; r: number }[] = [];
+    for (const list of byTopic.values()) {
+      const ordered = shuffle(list, rng).sort((a, b) => Number(recent.has(a.id)) - Number(recent.has(b.id)));
+      ordered.forEach((q, i) => rated.push({ q, r: (i + 1 - rng()) / list.length }));
+    }
+    // 2) fila do macrotema: não vistas primeiro; temas misturados na proporção do tamanho de cada um
+    rated.sort((a, b) => Number(recent.has(a.q.id)) - Number(recent.has(b.q.id)) || a.r - b.r);
+    rated.forEach(({ q }, i) => keyed.push({ q, key: (i + 1 - rng()) / (size * share(m)) }));
+  }
+  const chosen = keyed.sort((a, b) => a.key - b.key).slice(0, size).map((k) => k.q);
+
+  let order = shuffle(chosen, rng);
+  const prev = opts.previousOrder;
+  for (let i = 0; i < 8 && prev && order.length > 1 && order.every((q, j) => q.id === prev[j]); i++) order = shuffle(chosen, rng);
+  return order.map((q) => present(q, rng));
 }
 
 /** Sorteia até `count` questões (todas, se count for omitido) e embaralha as alternativas. */
 export function pickQuestions(pool: readonly Question[], count?: number, rng: () => number = Math.random): Question[] {
   const n = count === undefined ? pool.length : Math.min(count, pool.length);
-  return shuffle(pool, rng).slice(0, n).map((q) => shuffleOptions(q, rng));
+  return shuffle(pool, rng).slice(0, n).map((q) => present(q, rng));
 }
 
 export function grade(questions: readonly Question[], answers: Answers): GradeResult {

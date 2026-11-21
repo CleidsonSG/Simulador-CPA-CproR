@@ -25,6 +25,28 @@ export function saveAttempt(a: AttemptRecord): AttemptRecord[] {
   return next;
 }
 
+const SEEN_KEY = 'simulador-anbima:ultima-prova:v1';
+
+/** Ids, em ordem, da última prova gerada para a certificação (para não repetir questões nem ordem). */
+export function loadLastExam(cert: string): string[] {
+  try {
+    const all = JSON.parse(localStorage.getItem(SEEN_KEY) ?? '{}') as Record<string, string[]>;
+    return Array.isArray(all[cert]) ? all[cert] : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveLastExam(cert: string, ids: string[]): void {
+  try {
+    const all = JSON.parse(localStorage.getItem(SEEN_KEY) ?? '{}') as Record<string, string[]>;
+    all[cert] = ids;
+    localStorage.setItem(SEEN_KEY, JSON.stringify(all));
+  } catch {
+    /* ignore */
+  }
+}
+
 const ERR_KEY = 'simulador-anbima:erros:v1';
 
 export function loadErrors(): ErrorBook {

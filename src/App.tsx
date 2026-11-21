@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Answers, AttemptRecord, Cert, Mode, Question } from './types';
 import { EXAMS, buildExam, grade, minutesFor, passMark, pickQuestions } from './lib/exam';
 import { applyResults, errorIds, type ErrorBook } from './lib/errors';
-import { loadErrors, loadHistory, loadTheme, saveAttempt, saveErrors, saveTheme } from './lib/storage';
+import { loadErrors, loadHistory, loadLastExam, loadTheme, saveAttempt, saveErrors, saveLastExam, saveTheme } from './lib/storage';
 import { loadQuestions } from './data/source';
 import { Home } from './components/Home';
 import { Quiz } from './components/Quiz';
@@ -55,7 +55,9 @@ export function App() {
         let questions: Question[];
         let minutes = 0;
         if (opts.mode === 'prova') {
-          questions = buildExam(cfg, bank.questions);
+          const last = loadLastExam(opts.cert);
+          questions = buildExam(cfg, bank.questions, { recentIds: new Set(last), previousOrder: last });
+          saveLastExam(opts.cert, questions.map((q) => q.id));
           minutes = minutesFor(cfg, questions.length);
         } else if (opts.mode === 'treino') {
           questions = pickQuestions(bank.questions.filter((q) => q.topic === opts.topic), opts.count);

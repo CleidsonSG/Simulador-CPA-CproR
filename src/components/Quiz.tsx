@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Answers, ExamConfig, Mode, Question } from '../types';
 import { formatClock } from '../lib/exam';
+import { APPEAL_CATEGORIES, hasAppeal, saveAppeal } from '../lib/appeals';
+import type { AppealCategory } from '../lib/appeals';
 
 interface Props {
   cfg: ExamConfig;
@@ -26,6 +28,11 @@ export function Quiz({ cfg, questions, mode, topic, minutes, isSample, onFinish,
   const elapsedRef = useRef(0);
   const doneRef = useRef(false);
   const nextRef = useRef<HTMLButtonElement>(null);
+  const [appealOpen, setAppealOpen] = useState(false);
+  const [appealCat, setAppealCat] = useState<AppealCategory | ''>('');
+  const [appealText, setAppealText] = useState('');
+  const [appealMsg, setAppealMsg] = useState<string | null>(null);
+  const [sent, setSent] = useState<Record<string, boolean>>({});
 
   const total = minutes * 60;
   const left = Math.max(0, total - elapsed);
@@ -60,9 +67,25 @@ export function Quiz({ cfg, questions, mode, topic, minutes, isSample, onFinish,
   };
 
   const next = () => {
+    setAppealOpen(false);
+    setAppealMsg(null);
+    setAppealText('');
+    setAppealCat('');
     if (isLast) finish();
     else setIndex(index + 1);
   };
+
+  const sendAppeal = () => {
+    const err = saveAppeal(q.id, appealCat as AppealCategory, appealText);
+    if (err) {
+      setAppealMsg(err);
+      return;
+    }
+    setSent({ ...sent, [q.id]: true });
+    setAppealOpen(false);
+    setAppealMsg(null);
+  };
+  const appealed = sent[q.id] || hasAppeal(q.id);
 
   const urgent = timed && left <= 300;
   const modeLabel = mode === 'prova' ? cfg.label : mode === 'treino' ? `Treino · ${topic ?? ''}` : 'Revisão de erros';
@@ -104,6 +127,8 @@ export function Quiz({ cfg, questions, mode, topic, minutes, isSample, onFinish,
         <div className="q-meta">
           <span className="tag">{q.topic}</span>
           <span className="tag tag-soft">{q.difficulty}</span>
+          {q.source === 'ia' && <span className="tag tag-soft">Gerada por IA</span>}
+          {q.source === 'exemplo' && <span className="tag tag-soft">Exemplo</span>}
         </div>
         <h2 className="q-statement">{q.statement}</h2>
 
@@ -149,6 +174,28 @@ export function Quiz({ cfg, questions, mode, topic, minutes, isSample, onFinish,
                 </p>
                 <p className="explain">{q.explanation}</p>
               </>
+            )}
+            {appealed ? (
+              <p className="muted small">✓ Recurso enviado. Será analisado.</p>
+            ) : (
+              <button className="btn btn-ghost small" onClick={() => setAppealOpen(!appealOpen)} aria-expanded={appealOpen}>
+                Contestar esta questão
+              </button>
+            )}
+            {appealOpen && !appealed && (
+              <div className="appeal-form">
+                <label className="small" htmlFor="ap-cat">Motivo</label>
+                <select id="ap-cat" value={appealCat} onChange={(e) => setAppealCat(e.target.value as AppealCategory)}>
+                  <option value="">Selecione…</option>
+                  {APPEAL_CATEGORIES.map((c) => (
+                    <option key={c.id} value={c.id}>{c.label}</option>
+                  ))}
+                </select>
+                <label className="small" htmlFor="ap-txt">Argumento (cite a norma ou o item do programa)</label>
+                <textarea id="ap-txt" rows={4} maxLength={1500} value={appealText} onChange={(e) => setAppealText(e.target.value)} />
+                {appealMsg && <p className="small" role="alert">⚠ {appealMsg}</p>}
+                <button className="btn btn-primary" onClick={sendAppeal}>Enviar recurso</button>
+              </div>
             )}
           </div>
         )}

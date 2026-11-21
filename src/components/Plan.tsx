@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { AttemptRecord, Cert } from '../types';
+import type { AttemptRecord, Cert, Question } from '../types';
 import { EXAMS } from '../lib/exam';
 import { aggregateTopics, toStats } from '../lib/analysis';
 import { REVIEW_RULES, buildPlan, fmtMin } from '../lib/plan';
 import { loadPlanPrefs, savePlanPrefs, type PlanPrefs } from '../lib/storage';
 import { loadQuestions } from '../data/source';
-import { TOPIC_WEIGHTS } from '../data/matrix';
+import { MACROS, topicWeights } from '../data/matrix';
 import { LevelTag } from './ui';
 
 interface Props {
@@ -20,14 +20,14 @@ const fmtDate = (d?: Date) => (d ? d.toLocaleDateString('pt-BR', { day: '2-digit
 export function Plan({ cert, history, onBack, onCert }: Props) {
   const cfg = EXAMS[cert];
   const [prefs, setPrefs] = useState<PlanPrefs>(() => loadPlanPrefs());
-  const [bankTopics, setBankTopics] = useState<string[] | null>(null);
+  const [bank, setBank] = useState<Question[] | null>(null);
   const [printMsg, setPrintMsg] = useState('');
 
   useEffect(() => {
     let alive = true;
     loadQuestions(cert)
-      .then((b) => alive && setBankTopics([...new Set(b.questions.map((q) => q.topic))]))
-      .catch(() => alive && setBankTopics([]));
+      .then((b) => alive && setBank(b.questions))
+      .catch(() => alive && setBank([]));
     return () => {
       alive = false;
     };
@@ -35,10 +35,12 @@ export function Plan({ cert, history, onBack, onCert }: Props) {
 
   useEffect(() => savePlanPrefs(prefs), [prefs]);
 
+  const bankTopics = useMemo(() => (bank ? [...new Set(bank.map((q) => q.topic))] : null), [bank]);
+  const weights = useMemo(() => topicWeights(cert, bank ?? []), [cert, bank]);
   const stats = useMemo(() => toStats(aggregateTopics(history, cert), bankTopics ?? []), [history, cert, bankTopics]);
   const plan = useMemo(
-    () => buildPlan({ cfg, stats, daysPerWeek: prefs.daysPerWeek, minutesPerDay: prefs.minutesPerDay, examDate: prefs.examDate, topicWeights: TOPIC_WEIGHTS[cert] }),
-    [cfg, cert, stats, prefs],
+    () => buildPlan({ cfg, stats, daysPerWeek: prefs.daysPerWeek, minutesPerDay: prefs.minutesPerDay, examDate: prefs.examDate, topicWeights: weights }),
+    [cfg, stats, prefs, weights],
   );
 
   const print = () => {
@@ -125,6 +127,10 @@ export function Plan({ cert, history, onBack, onCert }: Props) {
           {plan.weeksLeft !== null && <> Faltam cerca de <strong>{plan.weeksLeft} semanas</strong> para a prova.</>}
         </p>
         <p className="muted small">Meta da prova: {cfg.total} questões em {fmtMin(cfg.minutes)}, com no mínimo {Math.round(cfg.passPct * 100)}% de acertos.</p>
+        <p className="muted small">
+          Peso de cada macrotema na prova (Programa Detalhado):{' '}
+          {MACROS[cert].map((m) => `${m.id}. ${m.name.split(' (')[0]} ${Math.round(m.share * 100)}%`).join(' · ')}.
+        </p>
       </section>
 
       <section className="card">

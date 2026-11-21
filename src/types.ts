@@ -14,6 +14,15 @@ export interface Question {
   options: string[];
   correctIndex: number;
   explanation: string;
+  /**
+   * anbima = texto original, IMUTÁVEL (nem as alternativas podem ser reordenadas);
+   * ia = criada pelo agente criador de questões; exemplo = questões de demonstração do projeto.
+   */
+  source: 'anbima' | 'ia' | 'exemplo';
+  /** Código do Programa Detalhado (ex.: 2.1.3). O 1º número é o macrotema. */
+  pdCode?: string;
+  /** Quem escreveu a explicação: a própria Anbima ou a IA. */
+  explanationSource?: 'anbima' | 'ia';
 }
 
 export interface ExamConfig {

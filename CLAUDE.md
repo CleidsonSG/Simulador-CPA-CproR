@@ -21,6 +21,12 @@ Banco: Supabase (conta separada da do GitHub). Esquema em `supabase/migrations/0
 - As questões em `src/data/sampleQuestions.ts` são de exemplo, escritas para o projeto.
 - Ponto único de dados: `src/data/source.ts` (`loadQuestions`). Trocar o conteúdo por consulta ao Supabase filtrando `year >= 2026`.
 
+## Integridade, recursos e agentes
+- Questões `source='anbima'` são imutáveis (trigger + hash) e mantêm a ordem original das alternativas; só a ordem das questões é sorteada (`buildExam` / SQL `generate_exam`, cotas 20/40/30/10 CPA e 20/20/40/20 C-Pro R).
+- Recursos: tabela `appeals` → agente `.claude/agents/agente-recursos.md` (`/analisar-recursos`) → `record_decision`. ≥3 deferidos (confiança ≥0,7) de usuários distintos movem a questão para `questions_quarantine` (só admin; reversível com `restore_question`).
+- Criador de questões: `.claude/agents/criador-questoes.md` → `insert_generated_question` (source='ia'; sem verificação fica em `revisao`).
+- Validar SQL: `npm run test:sql` (PGlite). Texto integral dos PDFs do PD em `knowledge-private/` (fora do Git); links em `knowledge/FONTES.md`.
+
 ## Visual (diretrizes do projeto)
 Mobile-first (360–1440 px), modo escuro, esqueleto de carregamento, estados vazio/erro/sem internet, acessibilidade (não depender só de cor). Conferir em celular e computador antes de entregar tela.
 
