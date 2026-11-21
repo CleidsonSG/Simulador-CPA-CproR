@@ -5,6 +5,7 @@ import type { Cert, Question } from '../types';
  * (vigência 01/01/2026): campo "Proporção" de cada macrotema.
  *  - CPA:     https://anbima.com.br/data/files/6A/52/6F/A1/BED73910B07B2739B82BA2A8/Programa-Detalhado-CPA-ANBIMA.pdf
  *  - C-Pro R: https://anbima.com.br/data/files/38/52/0D/A1/BED73910B07B2739B82BA2A8/Programa-Detalhado-C-Pro-R-ANBIMA.pdf
+ *  - C-Pro I: https://www.anbima.com.br/data/files/9B/82/78/94/12793910A5947839EA2BA2A8/Programa-Detalhado-C-Pro-I.pdf
  * O 1º número do código do PD (ex.: 2.1.3) é o macrotema.
  */
 export interface Macro {
@@ -26,6 +27,12 @@ export const MACROS: Record<Cert, Macro[]> = {
     { id: 2, name: 'Análise de informações do cliente', share: 0.2 },
     { id: 3, name: 'Indicação de investimentos', share: 0.4 },
     { id: 4, name: 'Análise de portfólio e monitoramento da carteira', share: 0.2 },
+  ],
+  CPRO_I: [
+    { id: 1, name: 'Produtos de investimentos', share: 0.4 },
+    { id: 2, name: 'Investimentos alternativos, digitais e no exterior', share: 0.15 },
+    { id: 3, name: 'Previdência complementar', share: 0.25 },
+    { id: 4, name: 'Gestão de risco, análise de carteiras e indicadores de performance', share: 0.2 },
   ],
 };
 

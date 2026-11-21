@@ -86,7 +86,7 @@ create policy "questions: leitura" on public.questions
 create table if not exists public.appeals (
   id           uuid primary key default gen_random_uuid(),
   question_id  uuid not null,
-  cert         text not null check (cert in ('CPA', 'CPRO_R')),
+  cert         text not null check (cert in ('CPA', 'CPRO_R', 'CPRO_I')),
   user_id      uuid default auth.uid() references auth.users (id) on delete set null,
   category     text not null check (category in
                  ('gabarito_incorreto', 'enunciado_ambiguo', 'mais_de_uma_correta', 'nenhuma_correta',
@@ -210,7 +210,7 @@ end $$;
 
 -- ───────────── 4. Sorteio da prova ─────────────
 create table if not exists public.exam_blueprint (
-  cert text not null check (cert in ('CPA', 'CPRO_R')),
+  cert text not null check (cert in ('CPA', 'CPRO_R', 'CPRO_I')),
   macro int not null check (macro between 1 and 4),
   share numeric not null check (share > 0 and share <= 1),
   primary key (cert, macro)
@@ -218,7 +218,8 @@ create table if not exists public.exam_blueprint (
 -- Proporções oficiais do Programa Detalhado (vigência 01/01/2026).
 insert into public.exam_blueprint (cert, macro, share) values
   ('CPA', 1, 0.20), ('CPA', 2, 0.40), ('CPA', 3, 0.30), ('CPA', 4, 0.10),
-  ('CPRO_R', 1, 0.20), ('CPRO_R', 2, 0.20), ('CPRO_R', 3, 0.40), ('CPRO_R', 4, 0.20)
+  ('CPRO_R', 1, 0.20), ('CPRO_R', 2, 0.20), ('CPRO_R', 3, 0.40), ('CPRO_R', 4, 0.20),
+  ('CPRO_I', 1, 0.40), ('CPRO_I', 2, 0.15), ('CPRO_I', 3, 0.25), ('CPRO_I', 4, 0.20)
   on conflict (cert, macro) do nothing;
 alter table public.exam_blueprint enable row level security;
 create policy "blueprint: leitura" on public.exam_blueprint for select to authenticated using (true);
@@ -230,7 +231,7 @@ create or replace function public.generate_exam(p_cert text, p_size int default 
 returns table (question_id uuid, pos int)
 language sql volatile set search_path = public as $$
   with params as (
-    select coalesce(p_size, case when p_cert = 'CPA' then 50 else 45 end) as n
+    select coalesce(p_size, case p_cert when 'CPA' then 50 when 'CPRO_I' then 40 else 45 end) as n
   ),
   last_attempt as (
     select id from public.attempts where user_id = auth.uid() and cert = p_cert order by started_at desc limit 1

@@ -86,11 +86,12 @@ describe('prova balanceada', () => {
 
 describe('proporções oficiais', () => {
   it('somam 100% nas duas provas', () => {
-    for (const cert of ['CPA', 'CPRO_R'] as const) {
+    for (const cert of ['CPA', 'CPRO_R', 'CPRO_I'] as const) {
       expect(MACROS[cert].reduce((s, m) => s + m.share, 0)).toBeCloseTo(1);
     }
     expect(MACROS.CPA.map((m) => m.share)).toEqual([0.2, 0.4, 0.3, 0.1]);
     expect(MACROS.CPRO_R.map((m) => m.share)).toEqual([0.2, 0.2, 0.4, 0.2]);
+    expect(MACROS.CPRO_I.map((m) => m.share)).toEqual([0.4, 0.15, 0.25, 0.2]);
   });
   it('macroOf lê o 1º número do código do PD', () => {
     expect(macroOf('2.1.3')).toBe(2);

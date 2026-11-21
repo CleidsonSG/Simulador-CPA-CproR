@@ -1,4 +1,4 @@
-export type Cert = 'CPA' | 'CPRO_R';
+export type Cert = 'CPA' | 'CPRO_R' | 'CPRO_I';
 /** prova = simulado completo; treino = só um tema; erros = refazer o caderno de erros. */
 export type Mode = 'prova' | 'treino' | 'erros';
 export type Difficulty = 'Baixa' | 'Média' | 'Alta';

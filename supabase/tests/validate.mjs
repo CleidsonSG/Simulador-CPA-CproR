@@ -86,6 +86,18 @@ ok(worstDev <= 2, `cotas por macrotema seguem 20/40/30/10% (maior desvio: ${wors
 ok(overlapMax <= 3, `não repete a tentativa anterior (maior repetição: ${overlapMax} de 50)`);
 ok(sameOrder === 0, 'a ordem nunca é igual à anterior');
 
+// C-Pro I: 40 questões, cotas 40/15/25/20
+await asOwner();
+for (const [m, n] of Object.entries({ 1: 50, 2: 20, 3: 30, 4: 25 })) {
+  for (let i = 0; i < n; i++) {
+    await db.query(`insert into public.questions (source_code, cert, topic, pd_code, difficulty, year, statement, options, correct_index, source)
+                    values ($1,'CPRO_I',$2,$3,'Média',2026,$4,$5,0,'anbima')`, [`I${m}-${i}`, `Tópico I${m}.${i % 4}`, `${m}.${(i % 4) + 1}`, `Enunciado I ${m}-${i}`, JSON.stringify(['A','B','C','D'])]);
+  }
+}
+await as(U(1));
+const ci = counts(await q1(`select split_part(q.pd_code,'.',1)::int macro from public.generate_exam('CPRO_I') e join public.questions q on q.id = e.question_id`));
+ok(Object.values(ci).reduce((a, b) => a + b, 0) === 40 && ci[1] === 16 && ci[2] === 6 && ci[3] === 10 && ci[4] === 8, `C-Pro I: 40 questões com cotas 40/15/25/20% (${JSON.stringify(ci)})`);
+
 console.log('\n3. Recursos, decisão do agente e quarentena (só admin)');
 await asOwner();
 const target = (await q1(`select id from public.questions where source_code = 'T3-1'`))[0].id;

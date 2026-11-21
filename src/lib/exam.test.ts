@@ -21,6 +21,7 @@ describe('regras oficiais', () => {
   });
   it('C-Pro R: 45 questões, 32 acertos', () => {
     expect(passMark(EXAMS.CPRO_R, 45)).toBe(32);
+    expect(passMark(EXAMS.CPRO_I, 40)).toBe(28);
   });
   it('escala a nota de corte e o tempo quando o banco é menor', () => {
     expect(passMark(EXAMS.CPA, 10)).toBe(7);

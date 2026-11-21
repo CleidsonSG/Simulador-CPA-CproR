@@ -5,7 +5,7 @@
 create table if not exists public.questions (
   id            uuid primary key default gen_random_uuid(),
   source_code   text unique,                       -- código da questão no banco de origem (ex.: 000085)
-  cert          text not null check (cert in ('CPA', 'CPRO_R')),
+  cert          text not null check (cert in ('CPA', 'CPRO_R', 'CPRO_I')),
   topic         text not null,                     -- tópico do programa detalhado (PD)
   pd_code       text,
   difficulty    text not null check (difficulty in ('Baixa', 'Média', 'Alta')),
@@ -23,7 +23,7 @@ create index if not exists questions_cert_idx on public.questions (cert, year);
 create table if not exists public.attempts (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  cert         text not null check (cert in ('CPA', 'CPRO_R')),
+  cert         text not null check (cert in ('CPA', 'CPRO_R', 'CPRO_I')),
   started_at   timestamptz not null default now(),
   finished_at  timestamptz,
   used_seconds int,

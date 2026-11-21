@@ -1,10 +1,11 @@
-# Simulador Anbima — CPA e C-Pro R
+# Simulador Anbima — CPA, C-Pro R e C-Pro I
 
-Simulador de provas de certificação Anbima (CPA e C-Pro R), com questões de **2026 em diante**.
+Simulador de provas de certificação Anbima (CPA, C-Pro R e C-Pro I), com questões de **2026 em diante**.
 
 ## Regras da prova (Edital Anbima, rev. nov/2025)
 - CPA: 50 questões, 2h30, aprovação com 70% (35 acertos).
 - C-Pro R: 45 questões, 2h30, aprovação com 71% (32 acertos).
+- C-Pro I: 40 questões, 2h30, aprovação com 70% (28 acertos).
 - 4 alternativas, uma correta. Constantes em `src/lib/exam.ts`.
 - Cada resposta mostra acerto/erro na hora; no erro, explica.
 
@@ -22,7 +23,7 @@ Banco: Supabase (conta separada da do GitHub). Esquema em `supabase/migrations/0
 - Ponto único de dados: `src/data/source.ts` (`loadQuestions`). Trocar o conteúdo por consulta ao Supabase filtrando `year >= 2026`.
 
 ## Integridade, recursos e agentes
-- Questões `source='anbima'` são imutáveis (trigger + hash) e mantêm a ordem original das alternativas; só a ordem das questões é sorteada (`buildExam` / SQL `generate_exam`, cotas 20/40/30/10 CPA e 20/20/40/20 C-Pro R).
+- Questões `source='anbima'` são imutáveis (trigger + hash) e mantêm a ordem original das alternativas; só a ordem das questões é sorteada (`buildExam` / SQL `generate_exam`, cotas 20/40/30/10 CPA, 20/20/40/20 C-Pro R e 40/15/25/20 C-Pro I).
 - Recursos: tabela `appeals` → agente `.claude/agents/agente-recursos.md` (`/analisar-recursos`) → `record_decision`. ≥3 deferidos (confiança ≥0,7) de usuários distintos movem a questão para `questions_quarantine` (só admin; reversível com `restore_question`).
 - Criador de questões: `.claude/agents/criador-questoes.md` → `insert_generated_question` (source='ia'; sem verificação fica em `revisao`).
 - Validar SQL: `npm run test:sql` (PGlite). Texto integral dos PDFs do PD em `knowledge-private/` (fora do Git); links em `knowledge/FONTES.md`.

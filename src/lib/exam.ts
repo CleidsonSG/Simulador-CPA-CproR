@@ -1,7 +1,7 @@
 import type { Answers, Cert, ExamConfig, GradeResult, Question } from '../types';
 import { MACROS, macroOf } from '../data/matrix';
 
-/** Regras oficiais (Edital Anbima, rev. nov/2025): CPA 50q/70%, C-Pro R 45q/71%, 2h30. */
+/** Regras oficiais (Edital Anbima, rev. nov/2025): CPA 50q/70%, C-Pro R 45q/71%, C-Pro I 40q/70%, 2h30. */
 export const EXAMS: Record<Cert, ExamConfig> = {
   CPA: {
     cert: 'CPA',
@@ -19,6 +19,14 @@ export const EXAMS: Record<Cert, ExamConfig> = {
     passPct: 0.71,
     minutes: 150,
   },
+  CPRO_I: {
+    cert: 'CPRO_I',
+    label: 'C-Pro I',
+    fullName: 'Certificação Profissional Anbima de Investimentos (C-Pro I)',
+    total: 40,
+    passPct: 0.7,
+    minutes: 150,
+  },
 };
 
 /** Quantas questões o simulado terá: o da prova real, ou menos se o banco for menor. */
@@ -26,7 +34,7 @@ export function examSize(cfg: ExamConfig, available: number): number {
   return Math.min(cfg.total, available);
 }
 
-/** Mínimo de acertos para aprovação (CPA 50→35; C-Pro R 45→32). */
+/** Mínimo de acertos para aprovação (CPA 50→35; C-Pro R 45→32; C-Pro I 40→28). */
 export function passMark(cfg: ExamConfig, size: number): number {
   return Math.ceil(Math.round(size * cfg.passPct * 1000) / 1000);
 }

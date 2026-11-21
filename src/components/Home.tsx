@@ -13,6 +13,7 @@ interface Props {
 const DETAILS: Record<Cert, string[]> = {
   CPA: ['50 questões', '2h30 de prova', 'Aprovação: 35 acertos (70%)'],
   CPRO_R: ['45 questões', '2h30 de prova', 'Aprovação: 32 acertos (71%)'],
+  CPRO_I: ['40 questões', '2h30 de prova', 'Aprovação: 28 acertos (70%)'],
 };
 
 export function Home({ history, onStart, onProgress, onPlan, onTrain, errorCount }: Props) {
