@@ -1,9 +1,10 @@
 // Recursos (contestação de questões). Espelha as regras do banco (supabase/migrations/0002).
 export const APPEAL_CATEGORIES = [
   { id: 'gabarito_incorreto', label: 'Gabarito incorreto' },
-  { id: 'duas_corretas', label: 'Mais de uma alternativa correta' },
+  { id: 'mais_de_uma_correta', label: 'Mais de uma alternativa correta' },
   { id: 'nenhuma_correta', label: 'Nenhuma alternativa correta' },
   { id: 'enunciado_ambiguo', label: 'Enunciado ambíguo' },
+  { id: 'fora_do_programa', label: 'Fora do programa detalhado' },
   { id: 'desatualizada', label: 'Desatualizada em relação à norma' },
   { id: 'outro', label: 'Outro motivo' },
 ] as const;

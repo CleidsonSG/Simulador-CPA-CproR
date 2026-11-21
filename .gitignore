@@ -8,3 +8,4 @@ dist
 # Questões reais da Anbima NUNCA vão para o repositório (ele é público).
 data-private/
 knowledge-private/
+*.tsbuildinfo

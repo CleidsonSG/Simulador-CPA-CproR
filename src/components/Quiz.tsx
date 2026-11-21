@@ -19,12 +19,14 @@ interface Props {
   minutes: number;
   isSample: boolean;
   onFinish: (answers: Answers, usedSeconds: number, paths: MapPaths) => void;
+  /** Recurso salvo: o App envia ao banco quando houver login. */
+  onAppeal?: (q: Question, category: AppealCategory, argument: string, chosen: number | undefined) => void;
   onExit: () => void;
 }
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
-export function Quiz({ cfg, questions, scenarios, mode, topic, minutes, isSample, onFinish, onExit }: Props) {
+export function Quiz({ cfg, questions, scenarios, mode, topic, minutes, isSample, onFinish, onAppeal, onExit }: Props) {
   const timed = mode === 'prova';
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
@@ -106,6 +108,7 @@ export function Quiz({ cfg, questions, scenarios, mode, topic, minutes, isSample
       setAppealMsg(err);
       return;
     }
+    onAppeal?.(q, appealCat as AppealCategory, appealText, chosen);
     setSent({ ...sent, [q.id]: true });
     setAppealOpen(false);
     setAppealMsg(null);

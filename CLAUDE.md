@@ -14,13 +14,13 @@ Vite + React 18 + TypeScript, CSS próprio (mobile-first, modo escuro), Vitest.
 Banco: Supabase (conta separada da do GitHub). Esquema em `supabase/migrations/0001_init.sql`.
 
 ## Comandos
-- `npm install` · `npm run dev` · `npm test` · `npm run build`
+- `npm install` · `npm run dev` · `npm test` · `npm run build` · `npm run import` (simula) · `npm run import:aplicar`
 
 ## Regras importantes
 - **Este repositório é PÚBLICO. Nunca commitar questões reais da Anbima** (nem em JSON, CSV, testes ou prints). Elas ficam só no Supabase. A pasta `data-private/` está no `.gitignore`.
 - Nunca commitar senhas, chaves de serviço ou `.env`. No front só a URL e a chave pública (anon) do Supabase.
 - As questões em `src/data/sampleQuestions.ts` são de exemplo, escritas para o projeto.
-- Ponto único de dados: `src/data/source.ts` (`loadQuestions`). Trocar o conteúdo por consulta ao Supabase filtrando `year >= 2026`.
+- Ponto único de dados: `src/data/source.ts` (`loadQuestions`): banco real com login (`fetchBank`, só `publicada` e `year >= 2026`), senão exemplos.
 
 ## Integridade, recursos e agentes
 - Questões `source='anbima'` são imutáveis (trigger + hash) e mantêm a ordem original das alternativas; só a ordem das questões é sorteada (`buildExam` / SQL `generate_exam`, cotas 20/40/30/10 CPA, 20/20/40/20 C-Pro R e 40/15/25/20 C-Pro I).
@@ -40,9 +40,13 @@ Banco: Supabase (conta separada da do GitHub). Esquema em `supabase/migrations/0
 Mobile-first (360–1440 px), modo escuro, esqueleto de carregamento, estados vazio/erro/sem internet, acessibilidade (não depender só de cor). Conferir em celular e computador antes de entregar tela.
 
 ## Próximos passos
-0. ✓ Feito: mapa (`MapChat`, digitando… + Voltar), caso (`CaseText` com `sanitizeHtml`, lado a lado ≥1024 px), `buildExam` com conjuntos (total = MC + 2×conjuntos; MC completa se faltarem), correção dos conjuntos só no resultado, amostras em `src/data/sampleScenarios.ts`. Ao ligar o Supabase: chamar `generate_exam(cert, total − 2×conjuntos)` + `generate_exam_scenarios(cert)`.
-1. Ligar o Supabase (URL + anon key em `.env`, criar `src/lib/supabase.ts`).
-2. Login (Supabase Auth) e salvar tentativas em `attempts` / `attempt_answers`.
-3. Importar as questões reais (script local, chave de serviço, fora do Git).
-4. Questões de caso e árvore de decisão da C-Pro R (formato interativo).
-5. Gráfico de evolução do desempenho e modo "refazer só os erros".
+Feito: mapas/casos na prova, cliente Supabase opcional (`src/lib/supabase.ts`; sem `.env` = modo demonstração),
+login e-mail/senha (`Account`, `NewPassword`), tentativas e recursos enviados por fila local (`src/lib/sync.ts`),
+histórico do banco juntado ao local, script de importação (`npm run import`, ver `scripts/README-importacao.md`),
+imagens de caso só do Storage do projeto.
+1. Criar `.env` com a URL e a chave pública do projeto certo (o Supabase do simulador fica em outra conta) e testar login real.
+2. No Supabase Auth: Site URL / Redirect URLs com o endereço do app (confirmação de e-mail e recuperação de senha).
+3. Rodar a importação (`npm run import`, depois `npm run import:aplicar`) com `data-private/`.
+4. Testar um mapa real importado (confirmar `next[i]` ↔ `options[i]`).
+5. Capturar os gráficos dos casos 000105 e 000175 no Storage e publicá-los.
+6. Caderno de erros e plano ainda são só locais (podem passar a vir de `attempt_answers`).

@@ -14,10 +14,12 @@ const escapeText = (s: string) => s.replace(/&(?!(?:[a-z]+|#\d+|#x[0-9a-f]+);)/g
 
 /**
  * Deixa passar só marcação de texto e tabelas, sem nenhum atributo além de colspan/rowspan/scope
- * (valores restritos). Scripts, estilos, links, imagens, eventos e comentários são removidos.
+ * (valores restritos). Scripts, estilos, links, eventos e comentários são removidos.
+ * Imagens (gráficos dos casos) só passam se o `src` começar com `imagePrefix` — o Storage público
+ * do próprio projeto. Sem prefixo, nenhuma imagem passa.
  * O conteúdo do caso vem do banco: nunca vai para a tela sem passar por aqui.
  */
-export function sanitizeHtml(html: string): string {
+export function sanitizeHtml(html: string, imagePrefix?: string | null): string {
   const cleaned = html
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/<(script|style|iframe|object|embed|noscript|template|svg|math)\b[\s\S]*?<\/\1\s*>/gi, '');
@@ -28,6 +30,10 @@ export function sanitizeHtml(html: string): string {
     out += escapeText(cleaned.slice(last, m.index));
     last = tag.lastIndex;
     const name = m[1].toLowerCase();
+    if (name === 'img' && !m[0].startsWith('</')) {
+      out += safeImg(m[2], imagePrefix);
+      continue;
+    }
     if (!ALLOWED.has(name)) continue;
     if (m[0].startsWith('</')) {
       if (!VOID.has(name)) out += `</${name}>`;
@@ -44,6 +50,18 @@ export function sanitizeHtml(html: string): string {
     out += `<${name}${attrs}>`;
   }
   return out + escapeText(cleaned.slice(last));
+}
+
+const attrValue = (attrs: string, key: string): string | null => {
+  const m = new RegExp(`(?:^|\\s)${key}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+))`, 'i').exec(attrs);
+  return m ? (m[1] ?? m[2] ?? m[3] ?? '') : null;
+};
+
+function safeImg(attrs: string, prefix?: string | null): string {
+  const src = attrValue(attrs, 'src')?.trim();
+  if (!prefix || !src || !src.startsWith(prefix) || !/^https:\/\/[^\s"'<>]+$/.test(src)) return '';
+  const alt = escapeText(attrValue(attrs, 'alt') ?? 'Gráfico do caso').replace(/"/g, '&quot;');
+  return `<img src="${src}" alt="${alt}" loading="lazy" referrerpolicy="no-referrer">`;
 }
 
 /* ───────────── Mapa de decisão ───────────── */

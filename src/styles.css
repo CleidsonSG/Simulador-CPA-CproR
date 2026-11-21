@@ -302,3 +302,17 @@ p { margin: 0 0 8px; }
 .set-base { border: 1px solid var(--border); border-radius: 12px; padding: 4px 12px; }
 .set-base[open] { padding-bottom: 12px; }
 .set-qs { margin: 0; padding-left: 20px; display: grid; gap: 14px; }
+
+/* ───── Conta ───── */
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+.account-btn { min-height: 44px; padding: 0 14px; display: inline-flex; align-items: center; gap: 8px; position: relative; }
+.avatar { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--primary); color: var(--primary-ink); font-weight: 800; font-size: .85rem; }
+.dot-pending { position: absolute; top: 6px; right: 6px; width: 10px; height: 10px; border-radius: 50%; background: #d99a00; border: 2px solid var(--surface); }
+@media (max-width: 380px) { .account-label { display: none; } }
+.account { display: grid; gap: 12px; max-width: 520px; width: 100%; margin: 0 auto; }
+.auth-form { display: grid; gap: 12px; }
+.auth-form label { display: grid; gap: 4px; font-weight: 600; font-size: .92rem; }
+.auth-form input { min-height: 48px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 0 12px; font: inherit; }
+.auth-form .feedback { margin: 0; }
+.link-btn { background: none; border: 0; padding: 0; color: inherit; font-weight: 700; text-decoration: underline; min-height: 24px; }
+.case-body img { max-width: 100%; height: auto; display: block; margin: 8px 0; border-radius: 8px; background: #fff; }

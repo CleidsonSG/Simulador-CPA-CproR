@@ -9,9 +9,12 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc -b",
-    "test:sql": "node supabase/tests/validate.mjs"
+    "test:sql": "node supabase/tests/validate.mjs",
+    "import": "node scripts/import-questions.mjs",
+    "import:aplicar": "node scripts/import-questions.mjs --aplicar"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

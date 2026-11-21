@@ -2,8 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Answers, AttemptRecord, Cert, Mode, Question, Scenario } from './types';
 import { EXAMS, buildExam, grade, minutesFor, passMark, pickQuestions } from './lib/exam';
 import { applyResults, errorIds, type ErrorBook } from './lib/errors';
-import { loadErrors, loadHistory, loadLastExam, loadTheme, saveAttempt, saveErrors, saveLastExam, saveTheme } from './lib/storage';
+import { loadErrors, loadHistory, loadLastExam, loadTheme, saveAttempt, saveErrors, saveHistory, saveLastExam, saveTheme } from './lib/storage';
 import { loadQuestions } from './data/source';
+import { supabase } from './lib/supabase';
+import { useSession } from './lib/auth';
+import { buildAttempt, enqueue, fetchRemoteHistory, flushOutbox, loadOutbox, mergeHistory, newId } from './lib/sync';
+import { Account } from './components/Account';
+import { NewPassword } from './components/NewPassword';
 import { Home } from './components/Home';
 import { Quiz, type MapPaths } from './components/Quiz';
 import { Result } from './components/Result';
@@ -13,6 +18,7 @@ import { Train, type StartOpts } from './components/Train';
 
 type Screen =
   | { name: 'home' }
+  | { name: 'account' }
   | { name: 'progress'; cert: Cert }
   | { name: 'plan'; cert: Cert }
   | { name: 'train'; cert: Cert }
@@ -46,12 +52,37 @@ export function App() {
 
   const lastCert: Cert = history[0]?.cert ?? 'CPA';
 
+  // ── Conta e sincronização com o Supabase ──
+  const { session, ready, recovery, endRecovery } = useSession();
+  const userId = session?.user.id ?? null;
+  const [pending, setPending] = useState(0);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+
+  const sync = useCallback(async () => {
+    if (!supabase || !userId) return;
+    try {
+      const r = await flushOutbox(supabase, userId);
+      setPending(r.left);
+      const merged = mergeHistory(loadHistory(), await fetchRemoteHistory(supabase));
+      saveHistory(merged);
+      setHistory(merged);
+      setSyncMsg(null);
+    } catch {
+      setPending(loadOutbox().filter((i) => i.userId === userId).length);
+      setSyncMsg('Não foi possível falar com o servidor agora. Tentaremos de novo quando houver internet.');
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (online) void sync();
+  }, [online, sync]);
+
   const start = useCallback(
     async (opts: StartOpts) => {
       setScreen({ name: 'loading' });
       try {
         const cfg = EXAMS[opts.cert];
-        const bank = await loadQuestions(opts.cert);
+        const bank = await loadQuestions(opts.cert, !!userId);
         const single = bank.questions.filter((q) => !q.scenarioCode);
         let questions: Question[];
         let minutes = 0;
@@ -81,10 +112,16 @@ export function App() {
         const scenarios = Object.fromEntries(bank.scenarios.map((s) => [s.code, s]));
         setScreen({ name: 'quiz', opts, questions, scenarios, minutes, isSample: bank.isSample });
       } catch {
-        setScreen({ name: 'error', opts, message: 'Falha ao carregar as questões. Tente de novo.' });
+        setScreen({
+          name: 'error',
+          opts,
+          message: navigator.onLine
+            ? 'Falha ao carregar as questões. Tente de novo.'
+            : 'Sem internet: não foi possível baixar as questões. Conecte-se e tente de novo.',
+        });
       }
     },
-    [errors],
+    [errors, userId],
   );
 
   const finish = useCallback(
@@ -106,11 +143,18 @@ export function App() {
       // Histórico e indicador de prontidão: só simulados completos.
       if (mode === 'prova') {
         const mark = passMark(cfg, questions.length);
+        const id = newId();
+        const now = new Date();
+        // Banco real + login: grava em attempts/attempt_answers (via fila, para funcionar sem internet).
+        if (!isSample && userId) {
+          enqueue({ kind: 'attempt', userId, ...buildAttempt(id, opts.cert, questions, answers, g, mark, usedSeconds, now) });
+          void sync();
+        }
         setHistory(
           saveAttempt({
-            id: `${Date.now()}`,
+            id,
             cert: opts.cert,
-            date: new Date().toISOString(),
+            date: now.toISOString(),
             correct: g.correct,
             total: g.total,
             passMark: mark,
@@ -122,7 +166,17 @@ export function App() {
       }
       setScreen({ name: 'result', opts, questions, scenarios, paths, answers, usedSeconds, isSample });
     },
-    [errors],
+    [errors, userId, sync],
+  );
+
+  /** Recurso: sempre fica no navegador; com banco real e login, vai também para a tabela `appeals`. */
+  const appeal = useCallback(
+    (q: Question, category: string, argument: string, chosen: number | undefined, isSample: boolean) => {
+      if (isSample || !userId) return;
+      enqueue({ kind: 'appeal', userId, appeal: { question_id: q.id, cert: q.cert, category, argument: argument.trim(), chosen_index: chosen ?? null } });
+      void sync();
+    },
+    [userId, sync],
   );
 
   const home = () => setScreen({ name: 'home' });
@@ -134,14 +188,33 @@ export function App() {
           <span className="brand-mark" aria-hidden="true">A</span>
           <span>Simulador Anbima</span>
         </button>
-        <button
-          className="icon-btn"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          aria-label={theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
-          title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
-        >
-          {theme === 'dark' ? '☀' : '☾'}
-        </button>
+        <div className="topbar-actions">
+          {supabase && ready && (
+            <button
+              className={userId ? 'btn btn-ghost account-btn' : 'btn btn-primary account-btn'}
+              onClick={() => setScreen({ name: 'account' })}
+              aria-label={userId ? `Sua conta (${session?.user.email ?? ''})` : 'Entrar na sua conta'}
+            >
+              {userId ? (
+                <>
+                  <span className="avatar" aria-hidden="true">{(session?.user.email ?? '?')[0].toUpperCase()}</span>
+                  <span className="account-label">Conta</span>
+                  {pending > 0 && <span className="dot-pending" aria-label={`${pending} envios pendentes`} />}
+                </>
+              ) : (
+                'Entrar'
+              )}
+            </button>
+          )}
+          <button
+            className="icon-btn"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            aria-label={theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
+            title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
+          >
+            {theme === 'dark' ? '☀' : '☾'}
+          </button>
+        </div>
       </header>
 
       {!online && (
@@ -151,6 +224,19 @@ export function App() {
       )}
 
       <main className="main">
+        {recovery && <NewPassword onDone={endRecovery} />}
+
+        {screen.name === 'home' && supabase && ready && !userId && (
+          <div className="banner banner-info" role="note">
+            Você está usando questões de exemplo.{' '}
+            <button className="link-btn" onClick={() => setScreen({ name: 'account' })}>Entre na sua conta</button> para usar o banco real.
+          </div>
+        )}
+
+        {screen.name === 'account' && (
+          <Account session={session} pending={pending} syncMsg={syncMsg} onSync={() => void sync()} onBack={home} />
+        )}
+
         {screen.name === 'home' && (
           <Home
             history={history}
@@ -224,6 +310,7 @@ export function App() {
             topic={screen.opts.topic}
             minutes={screen.minutes}
             isSample={screen.isSample}
+            onAppeal={(q, cat, text, chosen) => appeal(q, cat, text, chosen, screen.isSample)}
             onFinish={(answers, used, paths) => finish(screen.opts, screen.questions, screen.scenarios, paths, answers, used, screen.isSample)}
             onExit={home}
           />

@@ -113,3 +113,12 @@ export function saveTheme(t: 'light' | 'dark'): void {
     /* ignore */
   }
 }
+
+/** Substitui o histórico local (usado ao juntar com o histórico do banco). */
+export function saveHistory(list: AttemptRecord[]): void {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(list.slice(0, 50)));
+  } catch {
+    /* ignore */
+  }
+}
