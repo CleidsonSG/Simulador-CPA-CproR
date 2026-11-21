@@ -21,7 +21,7 @@ await db.exec(`
   alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
   alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
 `);
-for (const f of ['0001_init.sql', '0002_integridade_recursos_quarentena.sql', '0003_classificacao_editavel.sql']) {
+for (const f of ['0001_init.sql', '0002_integridade_recursos_quarentena.sql', '0003_classificacao_editavel.sql', '0004_cenarios_mapas_casos.sql']) {
   await db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
 }
 await db.exec(`grant all on all tables in schema public to anon, authenticated, service_role;`);
@@ -157,6 +157,23 @@ await rejects(() => db.query(`select public.insert_generated_question('CPA','2.1
 await as(U(1));
 ok((await q1(`select count(*)::int n from public.questions where id = $1`, [id2]))[0].n === 0, 'aluno não vê questão em revisão');
 await rejects(() => db.query(`select public.insert_generated_question('CPA','2.1.1','x','Média','Novo 3?', $1::jsonb, 1, 'e', 'agente', true)`, [JSON.stringify(good)]), 'aluno não cria questão');
+
+console.log('\n5. Mapas de decisão e casos (conjuntos)');
+await asOwner();
+const body = JSON.stringify({ intro: 'Cliente de exemplo', pergunta: 'Escolha', rootKey: 'k', nodes: { k: { client: 'Oi', options: ['a','b','c','d'], next: [], end: false } } });
+await db.query(`insert into public.question_scenarios (code, cert, kind, year, topic, body) values ('T001','CPA','mapa',2026,'Teste',$1::jsonb)`, [body]);
+for (const pos of [1, 2]) {
+  await db.query(`insert into public.questions (cert, topic, difficulty, year, statement, options, correct_index, explanation, source, source_code, status, scenario_code, scenario_pos)
+                  values ('CPA','Teste','Média',2026,$1,$2::jsonb,0,'e','anbima',$3,'publicada','T001',$4)`, ['Questão de conjunto ' + pos, JSON.stringify(good), 'T001-' + pos, pos]);
+}
+ok((await q1(`select public.verify_scenarios_integrity() n`))[0].n === 0, 'hash do cenário confere');
+await rejects(() => db.query(`update public.question_scenarios set body = '{}'::jsonb where code = 'T001'`), 'corpo do mapa da Anbima é imutável');
+await rejects(() => db.query(`delete from public.question_scenarios where code = 'T001'`), 'mapa da Anbima não pode ser apagado');
+await as(U(1));
+const sc = await q1(`select * from public.generate_exam_scenarios('CPA')`);
+ok(sc.length === 1 && sc[0].scenario_code === 'T001', 'sorteia o conjunto completo');
+const mc = await q1(`select * from public.generate_exam('CPA', 50)`);
+ok(!mc.some(r => ['T001'].includes(r.scenario_code)) && (await q1(`select count(*)::int n from public.questions q join public.generate_exam('CPA', 50) g on g.question_id = q.id where q.scenario_code is not null`))[0].n === 0, 'sorteio de múltipla escolha ignora questões de conjunto');
 
 console.log(failed ? `\n${failed} verificação(ões) FALHARAM` : '\nTodas as verificações passaram.');
 process.exit(failed ? 1 : 0);
