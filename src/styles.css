@@ -84,6 +84,7 @@ p { margin: 0 0 8px; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn-primary { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); }
 .btn-ghost { background: transparent; }
+.btn-danger { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); }
 .btn-block { width: 100%; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; }
 

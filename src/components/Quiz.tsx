@@ -17,6 +17,7 @@ export function Quiz({ cfg, questions, minutes, isSample, onFinish, onExit }: Pr
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
   const [left, setLeft] = useState(minutes * 60);
+  const [confirmExit, setConfirmExit] = useState(false);
   const answersRef = useRef<Answers>({});
   const doneRef = useRef(false);
   const nextRef = useRef<HTMLButtonElement>(null);
@@ -149,12 +150,16 @@ export function Quiz({ cfg, questions, minutes, isSample, onFinish, onExit }: Pr
 
       <div className="quiz-actions">
         <button
-          className="btn btn-ghost"
+          className={confirmExit ? 'btn btn-danger' : 'btn btn-ghost'}
           onClick={() => {
-            if (window.confirm('Sair do simulado? O progresso será perdido.')) onExit();
+            if (confirmExit) onExit();
+            else {
+              setConfirmExit(true);
+              window.setTimeout(() => setConfirmExit(false), 4000);
+            }
           }}
         >
-          Sair
+          {confirmExit ? 'Confirmar saída' : 'Sair'}
         </button>
         <button ref={nextRef} className="btn btn-primary" disabled={!answered} onClick={next}>
           {isLast ? 'Finalizar' : 'Próxima'}
