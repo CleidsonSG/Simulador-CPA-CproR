@@ -28,10 +28,19 @@ Banco: Supabase (conta separada da do GitHub). Esquema em `supabase/migrations/0
 - Criador de questões: `.claude/agents/criador-questoes.md` → `insert_generated_question` (source='ia'; sem verificação fica em `revisao`).
 - Validar SQL: `npm run test:sql` (PGlite). Texto integral dos PDFs do PD em `knowledge-private/` (fora do Git); links em `knowledge/FONTES.md`.
 
+## Mapas de decisão e casos (migração 0004)
+- Tabela `question_scenarios` (code, cert, kind `mapa`|`caso`, body jsonb, status). Mapa: `body = {intro, pergunta, rootKey, nodes}`; cada nó `{client, pergunta, options[4], next[{gerente, child}], end, endText}`. Caso: `body = {html}` (texto-base com tabelas).
+- Cada conjunto tem 2 questões de múltipla escolha em `questions` (`scenario_code`, `scenario_pos` 1–2), com correção só no fim do conjunto/prova. As opções do mapa não têm gabarito; só as 2 questões finais valem.
+- Já importados (source='anbima'): 8 mapas (CPA 5, C-Pro R 3) e 11 casos (C-Pro R 5, C-Pro I 6). Casos 000105 e 000175 ficam em `revisao` (gráficos em links que expiram; capturar as imagens antes de publicar).
+- `generate_exam` agora ignora questões de conjunto; `generate_exam_scenarios(cert)` sorteia os conjuntos (CPA 5, C-Pro R 7, C-Pro I 5). Prova = MC + 2 questões por conjunto.
+- O portal mostra o gabarito sempre na alternativa A nos itens de conjunto: embaralhar só a exibição (nunca o banco).
+- Faltam 3 questões MC da C-Pro I (000080, 000081 e mais 1) para importar.
+
 ## Visual (diretrizes do projeto)
 Mobile-first (360–1440 px), modo escuro, esqueleto de carregamento, estados vazio/erro/sem internet, acessibilidade (não depender só de cor). Conferir em celular e computador antes de entregar tela.
 
 ## Próximos passos
+0. Tela do mapa (conversa com atraso de digitação e botão voltar), tela do caso, `buildExam` com conjuntos como blocos contíguos, correção só no fim, revisão no resultado; amostras originais no repo (nunca dados reais); testes; conferir em 390 e 1280 px.
 1. Ligar o Supabase (URL + anon key em `.env`, criar `src/lib/supabase.ts`).
 2. Login (Supabase Auth) e salvar tentativas em `attempts` / `attempt_answers`.
 3. Importar as questões reais (script local, chave de serviço, fora do Git).
