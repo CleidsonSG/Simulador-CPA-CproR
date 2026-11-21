@@ -1,31 +1,58 @@
 // Valida as migrações em um Postgres local (PGlite), simulando o Supabase (auth.uid, roles, RLS).
 // Uso: npm run test:sql
 import { PGlite } from '@electric-sql/pglite';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 
 const db = new PGlite();
 let failed = 0;
 const ok = (cond, msg) => { console.log(`${cond ? '  ✓' : '  ✗'} ${msg}`); if (!cond) failed++; };
-const rejects = async (fn, msg) => { try { await fn(); ok(false, msg + ' (não deu erro)'); } catch { ok(true, msg); } };
+// Erro de GRANT (falta de permissão na tabela/função/esquema), diferente de RLS, CHECK ou trigger.
+const GRANT_ERR = /permission denied for (table|function|schema|sequence|view)/i;
+/**
+ * Espera que a operação seja recusada. Por padrão, recusa por falta de GRANT NÃO conta: ela esconderia
+ * a regra que se quer testar (CHECK, trigger, RLS). Use { grant: true } quando o esperado é justamente o GRANT.
+ */
+const rejects = async (fn, msg, { grant = false } = {}) => {
+  try { await fn(); ok(false, msg + ' (não deu erro)'); }
+  catch (e) {
+    const isGrant = GRANT_ERR.test(e.message);
+    if (isGrant && !grant) ok(false, `${msg} — recusado por falta de GRANT, não pela regra: ${e.message}`);
+    else if (!isGrant && grant) ok(false, `${msg} — esperava falta de GRANT, veio: ${e.message}`);
+    else ok(true, msg);
+  }
+};
+/** Espera que a operação funcione (sem erro de permissão nem outro). */
+const allows = async (fn, msg) => {
+  try { const r = await fn(); ok(true, msg); return r; }
+  catch (e) { ok(false, `${msg} — ${e.message}`); return null; }
+};
 const q1 = async (sql, params) => (await db.query(sql, params)).rows;
+// Erro inesperado: mensagem curta em vez do despejo do PGlite.
+const fatal = (e) => {
+  console.log(`\n  ✗ erro inesperado: ${e?.message ?? e}${e?.query ? `\n    em: ${e.query.replace(/\s+/g, ' ').slice(0, 160)}` : ''}`);
+  console.log('\nTeste interrompido.');
+  process.exit(1);
+};
+process.on('unhandledRejection', fatal);
+process.on('uncaughtException', fatal);
 
 // ── Stub mínimo do Supabase ──
+// Como num projeto NOVO do Supabase: tabelas criadas por SQL não dão acesso automático a ninguém.
+// Nenhum GRANT de tabela aqui — tudo o que anon/authenticated/service_role podem fazer tem de vir das migrações.
+// (service_role tem BYPASSRLS, como no Supabase, mas também precisa de GRANT.)
 await db.exec(`
-  create role anon nologin; create role authenticated nologin; create role service_role nologin;
+  create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
   create schema auth;
   create table auth.users (id uuid primary key);
   create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   create function auth.role() returns text language sql stable as $$ select nullif(current_setting('request.jwt.claim.role', true), '') $$;
   grant usage on schema auth to anon, authenticated, service_role;
-  grant usage on schema public to anon, authenticated, service_role;
-  alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
-  alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
 `);
-for (const f of ['0001_init.sql', '0002_integridade_recursos_quarentena.sql', '0003_classificacao_editavel.sql', '0004_cenarios_mapas_casos.sql']) {
+const MIGRATIONS = readdirSync(new URL('../migrations/', import.meta.url)).filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort();
+for (const f of MIGRATIONS) {
   await db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
 }
-await db.exec(`grant all on all tables in schema public to anon, authenticated, service_role;`);
-console.log('Migrações 0001 e 0002 aplicadas sem erro.\n');
+console.log(`Migrações aplicadas sem erro: ${MIGRATIONS.join(', ')}.\n`);
 
 const ADMIN = '00000000-0000-0000-0000-0000000000aa';
 const U = (n) => `00000000-0000-0000-0000-00000000000${n}`;
@@ -49,7 +76,64 @@ for (const [m, n] of Object.entries(per)) {
   }
 }
 
-console.log('1. Imutabilidade das questões da Anbima');
+console.log('0. Permissões (GRANT) — as mesmas operações do app, do histórico e da importação');
+const QCOLS = 'id,cert,topic,pd_code,difficulty,year,statement,options,correct_index,explanation,source,explanation_source,scenario_code,scenario_pos';
+const SCOLS = 'code,cert,kind,year,topic,pd_code,body,source';
+const someQ = (await q1(`select id from public.questions where source_code = 'T1-0'`))[0].id;
+
+// Visitante sem login (anon): nada.
+await as(null, 'anon');
+await rejects(() => db.query(`select id from public.questions limit 1`), 'anon não lê questões', { grant: true });
+await rejects(() => db.query(`insert into public.attempts (cert, total, pass_mark) values ('CPA', 50, 35)`), 'anon não grava tentativa', { grant: true });
+
+// Usuário logado: exatamente o que src/data/remote.ts e src/lib/sync.ts fazem.
+await as(U(4));
+const read = await allows(() => q1(`select ${QCOLS} from public.questions where cert = 'CPA' and status = 'publicada' and year >= 2026 order by id limit 1000`), 'logado lê questões (colunas do app)');
+ok((read?.length ?? 0) > 0, 'logado enxerga as questões publicadas');
+await allows(() => q1(`select ${SCOLS} from public.question_scenarios where cert = 'CPA' and status = 'publicada'`), 'logado lê mapas e casos');
+await allows(() => q1(`select * from public.exam_blueprint`), 'logado lê o blueprint da prova');
+await allows(() => q1(`select * from public.generate_exam('CPA')`), 'logado sorteia a prova (generate_exam)');
+await allows(() => q1(`select * from public.generate_exam_scenarios('CPA')`), 'logado sorteia os conjuntos (generate_exam_scenarios)');
+const attId = '00000000-0000-4000-8000-000000000004';
+const attSql = `insert into public.attempts (id, cert, started_at, finished_at, used_seconds, correct, total, pass_mark, passed)
+                values ($1,'CPA',now(),now(),60,1,1,1,true) on conflict (id) do nothing`;
+await allows(() => db.query(attSql, [attId]), 'logado grava tentativa (upsert ignorando duplicata)');
+await allows(() => db.query(attSql, [attId]), 'reenviar a mesma tentativa não dá erro');
+await allows(() => db.query(`insert into public.attempt_answers (attempt_id, question_id, chosen_index, is_correct) values ($1,$2,0,true)
+                              on conflict (attempt_id, question_id) do nothing`, [attId, someQ]), 'logado grava respostas');
+await allows(() => db.query(`update public.attempts set used_seconds = 61 where id = $1`, [attId]), 'logado atualiza a própria tentativa');
+await allows(() => q1(`select id,cert,started_at,finished_at,used_seconds,correct,total,pass_mark,passed from public.attempts where finished_at is not null`), 'logado lê o próprio histórico');
+await allows(() => q1(`select attempt_id,question_id,is_correct from public.attempt_answers where attempt_id = $1`, [attId]), 'logado lê as próprias respostas');
+await allows(() => q1(`select id,topic from public.questions where id = $1`, [someQ]), 'logado lê o tema das questões do histórico');
+await allows(() => db.query(`insert into public.appeals (question_id, cert, category, argument, chosen_index)
+                              values ($1,'CPA','fora_do_programa','Argumento de teste com mais de vinte caracteres.',0)`, [someQ]), 'logado envia recurso');
+await allows(() => q1(`select * from public.appeals`), 'logado lê os próprios recursos');
+await allows(() => q1(`select * from public.appeal_decisions`), 'logado lê as decisões dos próprios recursos');
+await rejects(() => db.query(`insert into public.questions (cert, topic, difficulty, year, statement, options, correct_index) values ('CPA','x','Média',2026,'x','["a","b","c","d"]',0)`), 'logado não insere questão', { grant: true });
+await rejects(() => db.query(`delete from public.attempts where id = $1`, [attId]), 'logado não apaga tentativa', { grant: true });
+await allows(() => q1(`select count(*)::int n from public.questions_quarantine`), 'logado consulta a quarentena sem erro (RLS devolve vazio)');
+
+// Admin (logado pelo app): funções administrativas.
+await as(ADMIN);
+for (const fn of ['record_decision(uuid, text, numeric, text, text[], jsonb, text)', 'quarantine_question(uuid, text)',
+                  'restore_question(uuid)', 'insert_generated_question(text, text, text, text, text, jsonb, int, text, text, boolean)']) {
+  ok((await q1(`select has_function_privilege('authenticated', 'public.${fn}', 'execute') p`))[0].p, `logado pode chamar ${fn.split('(')[0]} (a função confere is_admin)`);
+  ok(!(await q1(`select has_function_privilege('anon', 'public.${fn}', 'execute') p`))[0].p, `anon NÃO pode chamar ${fn.split('(')[0]}`);
+}
+
+// Script de importação (chave de serviço = service_role).
+await as(null, 'service_role');
+await allows(() => q1(`select code from public.question_scenarios`), 'importação lê os códigos de cenários');
+await allows(() => q1(`select source_code from public.questions where source_code is not null limit 100000`), 'importação lê os códigos de questões');
+await allows(() => db.query(`insert into public.question_scenarios (code, cert, kind, year, topic, body, source, status)
+                              values ('IMP-1','CPRO_R','caso',2026,'Importado','{"html":"<p>x</p>"}','anbima','publicada') on conflict (code) do nothing`), 'importação insere cenário');
+await allows(() => db.query(`insert into public.questions (source_code, cert, topic, difficulty, year, statement, options, correct_index, source, status)
+                              values ('IMP-Q1','CPRO_R','Importado','Média',2026,'Enunciado importado','["a","b","c","d"]',0,'anbima','publicada')
+                              on conflict (source_code) do nothing`), 'importação insere questão');
+await allows(() => q1(`select * from public.verify_integrity()`), 'importação confere a integridade (verify_integrity)');
+await asOwner();
+
+console.log('\n1. Imutabilidade das questões da Anbima');
 const sample = (await q1(`select id, content_hash from public.questions where source_code = 'T2-0'`))[0];
 ok(!!sample.content_hash, 'carimbo de integridade gravado na inserção');
 await rejects(() => db.query(`update public.questions set statement = 'alterado' where id = $1`, [sample.id]), 'não deixa alterar o enunciado');
@@ -117,7 +201,7 @@ ok((await q1(`select count(*)::int n from public.appeals`))[0].n === 1, 'usuári
 await rejects(() => db.query(`select public.record_decision((select id from public.appeals limit 1), 'deferido', 0.9, 'x')`), 'usuário comum não registra decisão');
 
 await as(ADMIN);
-const ids = (await q1(`select id from public.appeals order by created_at`)).map((r) => r.id);
+const ids = (await q1(`select id from public.appeals where question_id = $1 order by created_at`, [target])).map((r) => r.id);
 let r1 = (await q1(`select public.record_decision($1,'deferido',0.9,'Fonte primária contradiz o gabarito.', '{3.1.1}', '[{"url":"https://exemplo"}]') r`, [ids[0]]))[0].r;
 let r2 = (await q1(`select public.record_decision($1,'deferido',0.5,'Evidência fraca.') r`, [ids[1]]))[0].r;
 ok(r1 === 'mantida' && r2 === 'mantida', '1 deferido forte + 1 fraco: questão continua na prova');
