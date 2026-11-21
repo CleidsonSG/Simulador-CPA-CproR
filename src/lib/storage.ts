@@ -1,4 +1,5 @@
 import type { AttemptRecord } from '../types';
+import type { ErrorBook } from './errors';
 
 const KEY = 'simulador-anbima:historico:v1';
 const THEME_KEY = 'simulador-anbima:tema';
@@ -22,6 +23,29 @@ export function saveAttempt(a: AttemptRecord): AttemptRecord[] {
     /* armazenamento indisponível: segue sem histórico */
   }
   return next;
+}
+
+const ERR_KEY = 'simulador-anbima:erros:v1';
+
+export function loadErrors(): ErrorBook {
+  try {
+    const raw = localStorage.getItem(ERR_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data && typeof data === 'object' && !Array.isArray(data)) return data as ErrorBook;
+    }
+  } catch {
+    /* ignore */
+  }
+  return {};
+}
+
+export function saveErrors(book: ErrorBook): void {
+  try {
+    localStorage.setItem(ERR_KEY, JSON.stringify(book));
+  } catch {
+    /* ignore */
+  }
 }
 
 export interface PlanPrefs {

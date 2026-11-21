@@ -5,6 +5,7 @@ import { aggregateTopics, toStats } from '../lib/analysis';
 import { REVIEW_RULES, buildPlan, fmtMin } from '../lib/plan';
 import { loadPlanPrefs, savePlanPrefs, type PlanPrefs } from '../lib/storage';
 import { loadQuestions } from '../data/source';
+import { TOPIC_WEIGHTS } from '../data/matrix';
 import { LevelTag } from './ui';
 
 interface Props {
@@ -36,8 +37,8 @@ export function Plan({ cert, history, onBack, onCert }: Props) {
 
   const stats = useMemo(() => toStats(aggregateTopics(history, cert), bankTopics ?? []), [history, cert, bankTopics]);
   const plan = useMemo(
-    () => buildPlan({ cfg, stats, daysPerWeek: prefs.daysPerWeek, minutesPerDay: prefs.minutesPerDay, examDate: prefs.examDate }),
-    [cfg, stats, prefs],
+    () => buildPlan({ cfg, stats, daysPerWeek: prefs.daysPerWeek, minutesPerDay: prefs.minutesPerDay, examDate: prefs.examDate, topicWeights: TOPIC_WEIGHTS[cert] }),
+    [cfg, cert, stats, prefs],
   );
 
   const print = () => {

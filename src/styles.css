@@ -174,7 +174,7 @@ p { margin: 0 0 8px; }
 .tool { text-align: left; display: grid; gap: 4px; cursor: pointer; width: 100%; }
 .tool:hover { border-color: var(--primary); }
 .wrap { flex-wrap: wrap; }
-.wrap .btn { flex: 1; min-width: 110px; }
+.wrap .btn { flex: 1 1 130px; padding: 0 12px; }
 
 .lvl-critico { background: var(--bad-bg); color: var(--bad); }
 .lvl-atencao { background: var(--warn-bg); color: var(--warn-ink); }
@@ -236,3 +236,16 @@ p { margin: 0 0 8px; }
   .tag, .lvl-critico, .lvl-atencao, .lvl-ok { border: 1px solid #999; background: none; color: #000; }
   * { animation: none !important; }
 }
+
+/* ───── Treino focado ───── */
+.tools { display: grid; gap: 12px; }
+@media (min-width: 720px) { .tools { grid-template-columns: repeat(3, 1fr); } }
+.seg { display: flex; gap: 6px; margin: 8px 0 12px; }
+.seg-btn { flex: 1; min-height: 44px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); font-weight: 600; }
+.seg-on { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); }
+.train-list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; }
+.train-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+.train-list li:first-child { border-top: 0; }
+.train-info { display: grid; gap: 2px; min-width: 0; }
+.train-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.tag-reco { background: var(--primary); color: var(--primary-ink); }

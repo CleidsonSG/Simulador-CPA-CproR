@@ -64,6 +64,12 @@ export function buildExam(
   return shuffle(pool, rng).slice(0, size).map((q) => shuffleOptions(q, rng));
 }
 
+/** Sorteia até `count` questões (todas, se count for omitido) e embaralha as alternativas. */
+export function pickQuestions(pool: readonly Question[], count?: number, rng: () => number = Math.random): Question[] {
+  const n = count === undefined ? pool.length : Math.min(count, pool.length);
+  return shuffle(pool, rng).slice(0, n).map((q) => shuffleOptions(q, rng));
+}
+
 export function grade(questions: readonly Question[], answers: Answers): GradeResult {
   const topics = new Map<string, { correct: number; total: number }>();
   let correct = 0;

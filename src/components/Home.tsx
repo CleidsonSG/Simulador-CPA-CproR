@@ -6,6 +6,8 @@ interface Props {
   onStart: (cert: Cert) => void;
   onProgress: () => void;
   onPlan: () => void;
+  onTrain: () => void;
+  errorCount: number;
 }
 
 const DETAILS: Record<Cert, string[]> = {
@@ -13,7 +15,7 @@ const DETAILS: Record<Cert, string[]> = {
   CPRO_R: ['45 questões', '2h30 de prova', 'Aprovação: 32 acertos (71%)'],
 };
 
-export function Home({ history, onStart, onProgress, onPlan }: Props) {
+export function Home({ history, onStart, onProgress, onPlan, onTrain, errorCount }: Props) {
   return (
     <>
       <section className="hero">
@@ -38,7 +40,11 @@ export function Home({ history, onStart, onProgress, onPlan }: Props) {
         ))}
       </section>
 
-      <section className="grid" aria-label="Acompanhamento">
+      <section className="tools" aria-label="Acompanhamento">
+        <button className="card tool" onClick={onTrain}>
+          <strong>🎯 Treino focado{errorCount > 0 ? ` · ${errorCount} p/ revisar` : ''}</strong>
+          <span className="muted small">Refaça seus erros ou treine só um tema</span>
+        </button>
         <button className="card tool" onClick={onProgress}>
           <strong>📈 Meu desempenho</strong>
           <span className="muted small">Evolução, temas fracos e indicador de prontidão</span>

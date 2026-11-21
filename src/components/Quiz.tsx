@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Answers, ExamConfig, Question } from '../types';
+import type { Answers, ExamConfig, Mode, Question } from '../types';
 import { formatClock } from '../lib/exam';
 
 interface Props {
   cfg: ExamConfig;
   questions: Question[];
+  mode: Mode;
+  topic?: string;
+  /** Minutos da prova (só no modo prova; nos outros o relógio apenas conta o tempo). */
   minutes: number;
   isSample: boolean;
   onFinish: (answers: Answers, usedSeconds: number) => void;
@@ -13,43 +16,41 @@ interface Props {
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
-export function Quiz({ cfg, questions, minutes, isSample, onFinish, onExit }: Props) {
+export function Quiz({ cfg, questions, mode, topic, minutes, isSample, onFinish, onExit }: Props) {
+  const timed = mode === 'prova';
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
-  const [left, setLeft] = useState(minutes * 60);
+  const [elapsed, setElapsed] = useState(0);
   const [confirmExit, setConfirmExit] = useState(false);
   const answersRef = useRef<Answers>({});
+  const elapsedRef = useRef(0);
   const doneRef = useRef(false);
   const nextRef = useRef<HTMLButtonElement>(null);
 
   const total = minutes * 60;
+  const left = Math.max(0, total - elapsed);
   const q = questions[index];
   const chosen = answers[q.id];
   const answered = chosen !== undefined;
   const isLast = index === questions.length - 1;
 
-  const finish = useCallback(
-    (remaining: number) => {
-      if (doneRef.current) return;
-      doneRef.current = true;
-      onFinish(answersRef.current, total - remaining);
-    },
-    [onFinish, total],
-  );
+  const finish = useCallback(() => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onFinish(answersRef.current, elapsedRef.current);
+  }, [onFinish]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
-      setLeft((s) => {
-        if (s <= 1) {
-          window.clearInterval(id);
-          queueMicrotask(() => finish(0));
-          return 0;
-        }
-        return s - 1;
-      });
+      elapsedRef.current += 1;
+      setElapsed(elapsedRef.current);
     }, 1000);
     return () => window.clearInterval(id);
-  }, [finish]);
+  }, []);
+
+  useEffect(() => {
+    if (timed && elapsed >= total) finish();
+  }, [timed, elapsed, total, finish]);
 
   const choose = (i: number) => {
     if (answered) return;
@@ -59,11 +60,12 @@ export function Quiz({ cfg, questions, minutes, isSample, onFinish, onExit }: Pr
   };
 
   const next = () => {
-    if (isLast) finish(left);
+    if (isLast) finish();
     else setIndex(index + 1);
   };
 
-  const urgent = left <= 300;
+  const urgent = timed && left <= 300;
+  const modeLabel = mode === 'prova' ? cfg.label : mode === 'treino' ? `Treino · ${topic ?? ''}` : 'Revisão de erros';
 
   return (
     <div className="quiz">
@@ -72,10 +74,14 @@ export function Quiz({ cfg, questions, minutes, isSample, onFinish, onExit }: Pr
           <strong>
             Questão {index + 1} de {questions.length}
           </strong>
-          <span className="muted small"> · {cfg.label}</span>
+          <span className="muted small"> · {modeLabel}</span>
         </div>
-        <div className={urgent ? 'timer timer-urgent' : 'timer'} role="timer" aria-label="Tempo restante">
-          ⏱ {formatClock(left)}
+        <div
+          className={urgent ? 'timer timer-urgent' : 'timer'}
+          role="timer"
+          aria-label={timed ? 'Tempo restante' : 'Tempo decorrido'}
+        >
+          ⏱ {formatClock(timed ? left : elapsed)}
         </div>
       </div>
 

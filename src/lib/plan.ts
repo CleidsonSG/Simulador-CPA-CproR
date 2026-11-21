@@ -9,6 +9,8 @@ export interface PlanInput {
   /** AAAA-MM-DD, opcional */
   examDate?: string;
   today?: Date;
+  /** Multiplicador de peso por tema (ver src/data/matrix.ts). Ausente = 1. */
+  topicWeights?: Record<string, number>;
 }
 
 export interface Block {
@@ -79,9 +81,9 @@ function focusText(level: Level, known: boolean): string {
 }
 
 /** Tempo semanal de estudo dos temas, dividido em blocos de 5 min; mais tempo para os temas mais fracos. */
-export function allocate(stats: TopicStat[], total: number): Block[] {
+export function allocate(stats: TopicStat[], total: number, topicWeights: Record<string, number> = {}): Block[] {
   if (stats.length === 0 || total <= 0) return [];
-  const weights = stats.map((s) => 0.25 + (1 - s.acc));
+  const weights = stats.map((s) => (0.25 + (1 - s.acc)) * (topicWeights[s.topic] ?? 1));
   const sum = weights.reduce((a, b) => a + b, 0);
   const minBlock = clamp(Math.floor(total / stats.length / 5) * 5, 5, 15);
   const mins = weights.map((w) => Math.max(minBlock, Math.round(((w / sum) * total) / 5) * 5));
@@ -150,7 +152,7 @@ export function buildPlan(input: PlanInput): StudyPlan {
   const topicDayNames = hasSimDay ? dayNames.slice(0, -1) : dayNames;
   const topicMinutes = topicDayNames.length * cap;
 
-  const cycle = allocate(stats, topicMinutes);
+  const cycle = allocate(stats, topicMinutes, input.topicWeights);
   const week = pack(cycle, topicDayNames, cap);
 
   if (hasSimDay) {
