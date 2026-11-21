@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "deny": [
+      "mcp__claude_ai_Supabase",
+      "mcp__claude_ai_Supabase__*",
+      "mcp__Supabase",
+      "mcp__Supabase__*"
+    ]
+  }
+}

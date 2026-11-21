@@ -17,6 +17,7 @@ Banco: Supabase (conta separada da do GitHub). Esquema em `supabase/migrations/0
 - `npm install` · `npm run dev` · `npm test` · `npm run build` · `npm run import` (simula) · `npm run import:aplicar`
 
 ## Regras importantes
+- **Não use o conector/MCP do Supabase neste projeto. Trabalhe só no código local. Não toque em nenhum projeto Supabase** (nem leitura, nem SQL, nem migração). O conector da conta atual aponta para outro projeto (CheckMercado). Banco, chaves e importação ficam com o dono do projeto.
 - **Este repositório é PÚBLICO. Nunca commitar questões reais da Anbima** (nem em JSON, CSV, testes ou prints). Elas ficam só no Supabase. A pasta `data-private/` está no `.gitignore`.
 - Nunca commitar senhas, chaves de serviço ou `.env`. No front só a URL e a chave pública (anon) do Supabase.
 - As questões em `src/data/sampleQuestions.ts` são de exemplo, escritas para o projeto.
@@ -44,7 +45,7 @@ Feito: mapas/casos na prova, cliente Supabase opcional (`src/lib/supabase.ts`; s
 login e-mail/senha (`Account`, `NewPassword`), tentativas e recursos enviados por fila local (`src/lib/sync.ts`),
 histórico do banco juntado ao local, script de importação (`npm run import`, ver `scripts/README-importacao.md`),
 imagens de caso só do Storage do projeto.
-1. Criar `.env` com a URL e a chave pública do projeto certo (o Supabase do simulador fica em outra conta) e testar login real.
+1. O dono cria o `.env` (URL + chave pública) e testa o login real. O Claude não acessa o Supabase (ver Regras importantes).
 2. No Supabase Auth: Site URL / Redirect URLs com o endereço do app (confirmação de e-mail e recuperação de senha).
 3. Rodar a importação (`npm run import`, depois `npm run import:aplicar`) com `data-private/`.
 4. Testar um mapa real importado (confirmar `next[i]` ↔ `options[i]`).
