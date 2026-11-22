@@ -22,6 +22,8 @@ interface Props {
   /** Minutos da prova (só no modo prova; nos outros o relógio apenas conta o tempo). */
   minutes: number;
   isSample: boolean;
+  /** Degustação: etiqueta própria e sem cronômetro (minutes = 0). */
+  trial?: boolean;
   onFinish: (answers: Answers, usedSeconds: number, paths: MapPaths) => void;
   /** Recurso salvo: o App envia ao banco quando houver login. */
   onAppeal?: (q: Question, category: AppealCategory, argument: string, chosen: number | undefined) => void;
@@ -30,10 +32,12 @@ interface Props {
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
-export function Quiz({ cfg, questions, scenarios, mode, feedback = 'imediata', topic, minutes, isSample, onFinish, onAppeal, onExit }: Props) {
-  const timed = mode === 'prova';
+export function Quiz({ cfg, questions, scenarios, mode, feedback = 'imediata', topic, minutes, isSample, trial = false, onFinish, onAppeal, onExit }: Props) {
+  const exam = mode === 'prova';
+  /** Prova com tempo limite (a degustação não tem: o relógio só conta). */
+  const timed = exam && minutes > 0;
   /** Correção só no fim: dá para avançar, voltar e trocar respostas até finalizar. */
-  const atEnd = timed && feedback === 'final';
+  const atEnd = exam && feedback === 'final';
   const [askFinish, setAskFinish] = useState(false);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
@@ -170,6 +174,7 @@ export function Quiz({ cfg, questions, scenarios, mode, feedback = 'imediata', t
   const questionCard = (
     <article className="card q-card" key={q.id}>
       <div className="q-meta">
+        {trial && <span className="tag tag-try">Degustação · questão {index + 1} de {questions.length}</span>}
         {q.sourceCode && <span className="tag tag-code num" title="Nº da questão na Anbima">Nº {q.sourceCode}</span>}
         {scenario && (
           <span className="tag">
@@ -347,7 +352,7 @@ export function Quiz({ cfg, questions, scenarios, mode, feedback = 'imediata', t
         <span style={{ width: `${(answeredCount / questions.length) * 100}%` }} />
       </div>
 
-      {isSample && (
+      {isSample && !trial && (
         <div className="banner banner-info">Questões de exemplo (banco real ainda não carregado).</div>
       )}
 
@@ -356,7 +361,7 @@ export function Quiz({ cfg, questions, scenarios, mode, feedback = 'imediata', t
           <span className="pause-icon" aria-hidden="true">
             <svg width="28" height="28" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor" /></svg>
           </span>
-          <h2>{timed ? 'Prova pausada' : 'Treino pausado'}</h2>
+          <h2>{exam ? 'Prova pausada' : 'Treino pausado'}</h2>
           <p className="pause-time num">
             {timed ? <>Restam <strong>{formatClock(left)}</strong></> : <>Tempo de estudo: <strong>{formatClock(elapsed)}</strong></>}
           </p>

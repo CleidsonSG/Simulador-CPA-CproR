@@ -16,6 +16,8 @@ interface Props {
   answers: Answers;
   usedSeconds: number;
   isSample: boolean;
+  /** Degustação: convite para liberar o acesso completo. */
+  trial?: boolean;
   size: number;
   onRetry: () => void;
   onHome: () => void;
@@ -30,7 +32,7 @@ interface Props {
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
-export function Result({ cfg, questions, scenarios, paths, answers, usedSeconds, isSample, size, onRetry, onHome, onPlan, onProgress, mode, feedback = 'imediata', topic, onTrain }: Props) {
+export function Result({ cfg, questions, scenarios, paths, answers, usedSeconds, isSample, trial = false, size, onRetry, onHome, onPlan, onProgress, mode, feedback = 'imediata', topic, onTrain }: Props) {
   const full = mode === 'prova' && feedback === 'final';
   const [filter, setFilter] = useState<'todas' | 'erradas' | 'certas' | 'branco'>('todas');
   const g = grade(questions, answers);
@@ -65,6 +67,7 @@ export function Result({ cfg, questions, scenarios, paths, answers, usedSeconds,
   return (
     <div className="result">
       {mode === 'prova' ? (
+        <>
         <ResultScore
           cfg={cfg}
           questions={questions}
@@ -75,6 +78,20 @@ export function Result({ cfg, questions, scenarios, paths, answers, usedSeconds,
           onTrain={onTrain}
           onJump={jump}
         />
+        {trial && (
+          <section className="card invite" aria-labelledby="invite-title">
+            <h2 id="invite-title">Gostou? Libere o acesso completo</h2>
+            <p className="muted">Sua conta já está com o administrador. Quando ela for liberada, você terá:</p>
+            <ul className="invite-list">
+              <li>Simulados da CPA, C-Pro R e C-Pro I no tamanho real da prova</li>
+              <li>Banco de questões completo, com mapas de decisão e casos</li>
+              <li>Treino por tema sem limite e revisão dos seus erros</li>
+              <li>Meu desempenho e Plano de estudos completos</li>
+            </ul>
+            <p className="muted small">É só entrar de novo depois da liberação.</p>
+          </section>
+        )}
+        </>
       ) : (
         <section className="card score" aria-live="polite">
           <p className="muted small">
@@ -245,7 +262,7 @@ export function Result({ cfg, questions, scenarios, paths, answers, usedSeconds,
       <div className="quiz-actions wrap">
         <button className="btn" onClick={onHome}>Início</button>
         <button className="btn" onClick={onProgress}>Meu desempenho</button>
-        <button className="btn btn-primary" onClick={onRetry}>{mode === 'prova' ? 'Novo simulado' : 'Treinar de novo'}</button>
+        <button className="btn btn-primary" onClick={onRetry}>{mode === 'prova' ? (trial ? 'Refazer a degustação' : 'Novo simulado') : 'Treinar de novo'}</button>
       </div>
     </div>
   );

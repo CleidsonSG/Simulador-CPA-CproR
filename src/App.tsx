@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Answers, AttemptRecord, Cert, Mode, Question, Scenario } from './types';
-import { EXAMS, buildExam, grade, minutesFor, passMark, pickQuestions } from './lib/exam';
+import { EXAMS, TRIAL, buildExam, buildTrial, grade, minutesFor, passMark, pickQuestions } from './lib/exam';
 import { applyResults, errorIds, type ErrorBook } from './lib/errors';
 import { clearStudyData, loadClearedAt, loadErrors, loadHistory, loadLastExam, loadTheme, saveAttempt, saveErrors, saveHistory, saveLastExam, saveTheme } from './lib/storage';
 import { loadQuestions } from './data/source';
@@ -53,7 +53,6 @@ export function App() {
     };
   }, []);
 
-  const lastCert: Cert = history[0]?.cert ?? 'CPA';
 
   // ── Conta e sincronização com o Supabase ──
   const { session, ready, recovery, endRecovery } = useSession();
@@ -76,6 +75,13 @@ export function App() {
   }, [userId, online]);
   const approved = !!userId && profile?.status === 'aprovado';
   const isAdmin = approved && profile?.role === 'admin' && !profile.legacy;
+  /**
+   * Degustação (só com Supabase configurado): conta sem liberação usa 5 questões + 1 mapa da CPA, com
+   * questões de exemplo; sem login, precisa entrar antes. O banco real segue protegido pelo RLS.
+   */
+  const trialMode: 'conta' | 'entrar' | null = !supabase || !ready ? null : !userId ? 'entrar' : profile && !approved ? 'conta' : null;
+  const trial = trialMode !== null;
+  const lastCert: Cert = trial ? TRIAL.cert : (history[0]?.cert ?? 'CPA');
 
   const sync = useCallback(async () => {
     if (!supabase || !userId || !approved) return;
@@ -97,7 +103,12 @@ export function App() {
   }, [online, sync]);
 
   const start = useCallback(
-    async (opts: StartOpts) => {
+    async (requested: StartOpts) => {
+      if (trialMode === 'entrar') return setScreen({ name: 'account' });
+      if (trial && requested.mode === 'erros') return setScreen({ name: 'train', cert: TRIAL.cert });
+      const opts: StartOpts = trial
+        ? { ...requested, cert: TRIAL.cert, trial: true, count: requested.count && Math.min(requested.count, TRIAL.trainMax) }
+        : requested;
       setScreen({ name: 'loading' });
       try {
         const cfg = EXAMS[opts.cert];
@@ -105,7 +116,9 @@ export function App() {
         const single = bank.questions.filter((q) => !q.scenarioCode);
         let questions: Question[];
         let minutes = 0;
-        if (opts.mode === 'prova') {
+        if (opts.trial && opts.mode === 'prova') {
+          questions = buildTrial(bank.questions, bank.scenarios); // sem cronômetro (minutes = 0)
+        } else if (opts.mode === 'prova') {
           const last = loadLastExam(opts.cert);
           questions = buildExam(cfg, bank.questions, { recentIds: new Set(last), previousOrder: last, scenarios: bank.scenarios });
           saveLastExam(opts.cert, questions.map((q) => q.id));
@@ -140,7 +153,7 @@ export function App() {
         });
       }
     },
-    [errors, approved],
+    [errors, approved, trial, trialMode],
   );
 
   const finish = useCallback(
@@ -273,18 +286,6 @@ export function App() {
       <main className="main">
         {recovery && <NewPassword onDone={endRecovery} invite={recovery === 'convite'} />}
 
-        {screen.name === 'home' && supabase && ready && !userId && (
-          <div className="banner banner-info" role="note">
-            Você está usando questões de exemplo.{' '}
-            <button className="link-btn" onClick={() => setScreen({ name: 'account' })}>Entre na sua conta</button> para usar o banco real.
-          </div>
-        )}
-
-        {screen.name === 'home' && userId && profile?.status === 'pendente' && (
-          <div className="banner banner-warn plan-warn" role="status">
-            <b>Sua conta aguarda aprovação do administrador.</b> Enquanto isso, você pode treinar com as questões de exemplo.
-          </div>
-        )}
         {screen.name === 'home' && userId && profile?.status === 'bloqueado' && (
           <div className="banner banner-warn plan-warn" role="alert">
             <b>Seu acesso ao banco de questões está bloqueado.</b> Fale com o administrador. As questões de exemplo continuam disponíveis.
@@ -316,6 +317,8 @@ export function App() {
             onClearHistory={clearHistory}
             errorCount={Object.keys(errors).length}
             signedIn={approved}
+            trial={trialMode}
+            onLogin={() => setScreen({ name: 'account' })}
           />
         )}
 
@@ -326,6 +329,7 @@ export function App() {
             onPlan={(cert) => setScreen({ name: 'plan', cert })}
             onTrain={(cert, topic) => start({ cert, mode: 'treino', topic, count: 10 })}
             onBack={home}
+            trial={trial}
           />
         )}
 
@@ -334,6 +338,7 @@ export function App() {
             cert={screen.cert}
             history={history}
             onCert={(cert) => setScreen({ name: 'plan', cert })}
+            trial={trial}
             onBack={() => setScreen({ name: 'progress', cert: screen.cert })}
           />
         )}
@@ -344,6 +349,7 @@ export function App() {
             history={history}
             errors={errors}
             onCert={(cert) => setScreen({ name: 'train', cert })}
+            trial={trial}
             onStart={start}
             onBack={home}
           />
@@ -383,6 +389,7 @@ export function App() {
             topic={screen.opts.topic}
             minutes={screen.minutes}
             isSample={screen.isSample}
+            trial={!!screen.opts.trial}
             onAppeal={(q, cat, text, chosen) => appeal(q, cat, text, chosen, screen.isSample)}
             onFinish={(answers, used, paths) => finish(screen.opts, screen.questions, screen.scenarios, paths, answers, used, screen.isSample)}
             onExit={home}
@@ -398,6 +405,7 @@ export function App() {
             answers={screen.answers}
             usedSeconds={screen.usedSeconds}
             isSample={screen.isSample}
+            trial={!!screen.opts.trial}
             size={screen.questions.length}
             mode={screen.opts.mode}
             feedback={screen.opts.feedback ?? 'imediata'}

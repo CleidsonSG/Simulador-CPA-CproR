@@ -60,3 +60,23 @@ describe('montagem e correção', () => {
     expect(formatClock(-5)).toBe('00:00:00');
   });
 });
+
+import { TRIAL, buildTrial } from './exam';
+import { sampleBank } from '../data/source';
+
+describe('degustação', () => {
+  it('5 questões de múltipla escolha da CPA + 1 mapa completo no fim', () => {
+    const b = sampleBank('CPA');
+    for (let i = 0; i < 10; i++) {
+      const qs = buildTrial(b.questions, b.scenarios);
+      expect(qs).toHaveLength(TRIAL.mc + 2);
+      expect(qs.every((q) => q.cert === 'CPA')).toBe(true);
+      expect(qs.slice(0, 5).every((q) => !q.scenarioCode)).toBe(true);
+      const [a, c] = qs.slice(5);
+      expect(a.scenarioCode).toBeTruthy();
+      expect(a.scenarioCode).toBe(c.scenarioCode);
+      expect(b.scenarios.find((s) => s.code === a.scenarioCode)?.kind).toBe('mapa');
+      expect([a.scenarioPos, c.scenarioPos]).toEqual([1, 2]);
+    }
+  });
+});

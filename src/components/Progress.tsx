@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { AttemptRecord, Cert } from '../types';
 import { EXAMS } from '../lib/exam';
 import { LEVEL_LABEL, READY_TEXT, aggregateTopics, readiness, sortTopics, summarize, toStats, type Level, type TopicSort } from '../lib/analysis';
-import { LevelTag } from './ui';
+import { CertTabs, LevelTag, Locked } from './ui';
 import { EvolutionChart, ReadinessMeter } from './charts';
 
 interface Props {
@@ -11,6 +11,8 @@ interface Props {
   onPlan: (cert: Cert) => void;
   onTrain: (cert: Cert, topic: string) => void;
   onBack: () => void;
+  /** Degustação: só CPA e só o resumo; evolução, prontidão e temas ficam bloqueados. */
+  trial?: boolean;
 }
 
 type Range = 5 | 10 | 0;
@@ -26,7 +28,9 @@ const fmtSec = (sec: number) => {
   return s >= 60 ? `${Math.floor(s / 60)}min${String(s % 60).padStart(2, '0')}` : `${s} s`;
 };
 
-export function Progress({ history, initialCert = 'CPA', onPlan, onTrain, onBack }: Props) {
+const LABELS = Object.fromEntries((Object.keys(EXAMS) as Cert[]).map((c) => [c, EXAMS[c].label])) as Record<Cert, string>;
+
+export function Progress({ history, initialCert = 'CPA', onPlan, onTrain, onBack, trial = false }: Props) {
   const [cert, setCert] = useState<Cert>(initialCert);
   const [range, setRange] = useState<Range>(10);
   const [asTable, setAsTable] = useState(false);
@@ -46,13 +50,7 @@ export function Progress({ history, initialCert = 'CPA', onPlan, onTrain, onBack
         <button className="btn btn-ghost no-print" onClick={onBack}>← Início</button>
       </div>
 
-      <div className="tabs" role="tablist" aria-label="Certificação">
-        {(Object.keys(EXAMS) as Cert[]).map((c) => (
-          <button key={c} role="tab" aria-selected={c === cert} className={c === cert ? 'tab tab-on' : 'tab'} onClick={() => setCert(c)}>
-            {EXAMS[c].label}
-          </button>
-        ))}
-      </div>
+      <CertTabs certs={Object.keys(EXAMS) as Cert[]} labels={LABELS} cert={cert} onCert={setCert} trial={trial} />
 
       {all.length === 0 ? (
         <section className="card empty">
@@ -87,59 +85,119 @@ export function Progress({ history, initialCert = 'CPA', onPlan, onTrain, onBack
             </Kpi>
           </section>
 
-          <section className="card" aria-labelledby="evo-title">
-            <div className="card-head">
-              <h2 id="evo-title">Evolução das notas</h2>
-              <div className="row row-tight">
-                {all.length > 5 && (
-                  <div className="chips-toggle" role="group" aria-label="Período">
-                    {RANGES.filter((r) => r.v === 0 || r.v < all.length).map((r) => (
-                      <button key={r.v} className={range === r.v ? 'chip-btn is-on' : 'chip-btn'} aria-pressed={range === r.v} onClick={() => setRange(r.v)}>
-                        {r.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <button className="chip-btn" aria-pressed={asTable} onClick={() => setAsTable(!asTable)}>
-                  {asTable ? 'Ver gráfico' : 'Ver tabela'}
-                </button>
+          {trial ? (
+            <Locked title="Evolução, prontidão e temas a reforçar">
+            <section className="card" aria-labelledby="evo-title">
+              <div className="card-head">
+                <h2 id="evo-title">Evolução das notas</h2>
+                <div className="row row-tight">
+                  {all.length > 5 && (
+                    <div className="chips-toggle" role="group" aria-label="Período">
+                      {RANGES.filter((r) => r.v === 0 || r.v < all.length).map((r) => (
+                        <button key={r.v} className={range === r.v ? 'chip-btn is-on' : 'chip-btn'} aria-pressed={range === r.v} onClick={() => setRange(r.v)}>
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button className="chip-btn" aria-pressed={asTable} onClick={() => setAsTable(!asTable)}>
+                    {asTable ? 'Ver gráfico' : 'Ver tabela'}
+                  </button>
+                </div>
               </div>
-            </div>
-            {asTable ? (
-              <div className="table-wrap">
-                <table className="table">
-                  <thead>
-                    <tr><th>#</th><th>Data</th><th>Acertos</th><th>Nota</th><th>Resultado</th></tr>
-                  </thead>
-                  <tbody>
-                    {attempts.map((a, i) => (
-                      <tr key={a.id}>
-                        <td>{all.length - attempts.length + i + 1}</td>
-                        <td>{new Date(a.date).toLocaleDateString('pt-BR')}</td>
-                        <td className="num">{a.correct}/{a.total}</td>
-                        <td className="num">{pct(a.correct / a.total)}</td>
-                        <td>{a.passed ? '✓ Aprovado' : '✗ Reprovado'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {asTable ? (
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr><th>#</th><th>Data</th><th>Acertos</th><th>Nota</th><th>Resultado</th></tr>
+                    </thead>
+                    <tbody>
+                      {attempts.map((a, i) => (
+                        <tr key={a.id}>
+                          <td>{all.length - attempts.length + i + 1}</td>
+                          <td>{new Date(a.date).toLocaleDateString('pt-BR')}</td>
+                          <td className="num">{a.correct}/{a.total}</td>
+                          <td className="num">{pct(a.correct / a.total)}</td>
+                          <td>{a.passed ? '✓ Aprovado' : '✗ Reprovado'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EvolutionChart attempts={attempts} passPct={cfg.passPct} />
+              )}
+            </section>
+  
+            <section className={`card ready ready-${ready.state}`} aria-labelledby="ready-title">
+              <div className="card-head">
+                <h2 id="ready-title">Prontidão para a prova</h2>
+                {ready.state !== 'poucos-dados' && <strong className="num ready-n">{pct(ready.avg)}</strong>}
               </div>
-            ) : (
-              <EvolutionChart attempts={attempts} passPct={cfg.passPct} />
-            )}
-          </section>
-
-          <section className={`card ready ready-${ready.state}`} aria-labelledby="ready-title">
-            <div className="card-head">
-              <h2 id="ready-title">Prontidão para a prova</h2>
-              {ready.state !== 'poucos-dados' && <strong className="num ready-n">{pct(ready.avg)}</strong>}
-            </div>
-            <ReadinessMeter value={ready.state === 'poucos-dados' ? null : ready.avg} passPct={cfg.passPct} />
-            <p>{READY_TEXT[ready.state]}</p>
-            <p className="muted small">É uma referência, não garante aprovação. Quanto mais simulados, mais confiável.</p>
-          </section>
-
-          <TopicExplorer stats={stats} onTrain={(t) => onTrain(cert, t)} />
+              <ReadinessMeter value={ready.state === 'poucos-dados' ? null : ready.avg} passPct={cfg.passPct} />
+              <p>{READY_TEXT[ready.state]}</p>
+              <p className="muted small">É uma referência, não garante aprovação. Quanto mais simulados, mais confiável.</p>
+            </section>
+  
+            <TopicExplorer stats={stats} onTrain={(t) => onTrain(cert, t)} />
+              </Locked>
+          ) : (
+            <>
+            <section className="card" aria-labelledby="evo-title">
+              <div className="card-head">
+                <h2 id="evo-title">Evolução das notas</h2>
+                <div className="row row-tight">
+                  {all.length > 5 && (
+                    <div className="chips-toggle" role="group" aria-label="Período">
+                      {RANGES.filter((r) => r.v === 0 || r.v < all.length).map((r) => (
+                        <button key={r.v} className={range === r.v ? 'chip-btn is-on' : 'chip-btn'} aria-pressed={range === r.v} onClick={() => setRange(r.v)}>
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button className="chip-btn" aria-pressed={asTable} onClick={() => setAsTable(!asTable)}>
+                    {asTable ? 'Ver gráfico' : 'Ver tabela'}
+                  </button>
+                </div>
+              </div>
+              {asTable ? (
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr><th>#</th><th>Data</th><th>Acertos</th><th>Nota</th><th>Resultado</th></tr>
+                    </thead>
+                    <tbody>
+                      {attempts.map((a, i) => (
+                        <tr key={a.id}>
+                          <td>{all.length - attempts.length + i + 1}</td>
+                          <td>{new Date(a.date).toLocaleDateString('pt-BR')}</td>
+                          <td className="num">{a.correct}/{a.total}</td>
+                          <td className="num">{pct(a.correct / a.total)}</td>
+                          <td>{a.passed ? '✓ Aprovado' : '✗ Reprovado'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EvolutionChart attempts={attempts} passPct={cfg.passPct} />
+              )}
+            </section>
+  
+            <section className={`card ready ready-${ready.state}`} aria-labelledby="ready-title">
+              <div className="card-head">
+                <h2 id="ready-title">Prontidão para a prova</h2>
+                {ready.state !== 'poucos-dados' && <strong className="num ready-n">{pct(ready.avg)}</strong>}
+              </div>
+              <ReadinessMeter value={ready.state === 'poucos-dados' ? null : ready.avg} passPct={cfg.passPct} />
+              <p>{READY_TEXT[ready.state]}</p>
+              <p className="muted small">É uma referência, não garante aprovação. Quanto mais simulados, mais confiável.</p>
+            </section>
+  
+            <TopicExplorer stats={stats} onTrain={(t) => onTrain(cert, t)} />
+              </>
+          )}
         </>
       )}
 

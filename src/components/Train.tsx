@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { AttemptRecord, Cert, Mode } from '../types';
-import { EXAMS } from '../lib/exam';
+import { EXAMS, TRIAL } from '../lib/exam';
 import { aggregateTopics, toStats } from '../lib/analysis';
 import { errorIds, type ErrorBook } from '../lib/errors';
 import { loadQuestions } from '../data/source';
-import { LevelTag } from './ui';
+import { CertTabs, LevelTag, Locked } from './ui';
 
 export interface StartOpts {
   cert: Cert;
@@ -13,6 +13,8 @@ export interface StartOpts {
   count?: number;
   /** Só no simulado (mode 'prova'). Ausente = imediata. */
   feedback?: import('../types').Feedback;
+  /** Sessão da degustação (conta sem liberação). */
+  trial?: boolean;
 }
 
 interface Props {
@@ -22,11 +24,16 @@ interface Props {
   onCert: (c: Cert) => void;
   onStart: (o: StartOpts) => void;
   onBack: () => void;
+  /** Degustação: só CPA, até 3 questões por tema, sem caderno de erros. */
+  trial?: boolean;
 }
 
-export function Train({ cert, history, errors, onCert, onStart, onBack }: Props) {
+const LABELS = Object.fromEntries((Object.keys(EXAMS) as Cert[]).map((c) => [c, EXAMS[c].label])) as Record<Cert, string>;
+
+export function Train({ cert, history, errors, onCert, onStart, onBack, trial = false }: Props) {
   const [counts, setCounts] = useState<Record<string, number> | null>(null);
-  const [size, setSize] = useState(10);
+  const [size, setSize] = useState(trial ? TRIAL.trainMax : 10);
+  const sizes = trial ? [TRIAL.trainMax] : [5, 10, 20];
 
   useEffect(() => {
     let alive = true;
@@ -58,14 +65,29 @@ export function Train({ cert, history, errors, onCert, onStart, onBack }: Props)
         <button className="btn btn-ghost" onClick={onBack}>← Início</button>
       </div>
 
-      <div className="tabs" role="tablist" aria-label="Certificação">
-        {(Object.keys(EXAMS) as Cert[]).map((c) => (
-          <button key={c} role="tab" aria-selected={c === cert} className={c === cert ? 'tab tab-on' : 'tab'} onClick={() => onCert(c)}>
-            {EXAMS[c].label}
-          </button>
-        ))}
-      </div>
+      <CertTabs certs={Object.keys(EXAMS) as Cert[]} labels={LABELS} cert={cert} onCert={onCert} trial={trial} />
 
+      {trial ? (
+        <Locked title="Caderno de erros">
+        <section className="card" aria-labelledby="book-title">
+          <h2 id="book-title">Caderno de erros</h2>
+          {nErrors === 0 ? (
+            <div className="empty-inline">
+              Nenhum erro guardado em {EXAMS[cert].label}. As questões que você errar aparecem aqui para refazer.
+            </div>
+          ) : (
+            <>
+              <p>
+                Você tem <strong>{nErrors}</strong> {nErrors === 1 ? 'questão' : 'questões'} para revisar. Acertou no treino, ela sai do caderno.
+              </p>
+              <button className="btn btn-primary btn-block" onClick={() => onStart({ cert, mode: 'erros' })}>
+                Refazer meus erros ({nErrors})
+              </button>
+            </>
+          )}
+        </section>
+          </Locked>
+      ) : (
       <section className="card" aria-labelledby="book-title">
         <h2 id="book-title">Caderno de erros</h2>
         {nErrors === 0 ? (
@@ -83,11 +105,12 @@ export function Train({ cert, history, errors, onCert, onStart, onBack }: Props)
           </>
         )}
       </section>
+      )}
 
       <section className="card" aria-labelledby="tema-title">
         <h2 id="tema-title">Treino por tema</h2>
         <div className="seg" role="group" aria-label="Quantidade de questões">
-          {[5, 10, 20].map((n) => (
+          {sizes.map((n) => (
             <button key={n} className={n === size ? 'seg-btn seg-on' : 'seg-btn'} aria-pressed={n === size} onClick={() => setSize(n)}>
               {n} questões
             </button>
@@ -128,7 +151,9 @@ export function Train({ cert, history, errors, onCert, onStart, onBack }: Props)
             ))}
           </ul>
         )}
-        <p className="muted small">O treino mostra o resultado na hora, sem nota de corte e sem cronômetro.</p>
+        <p className="muted small">
+          {trial ? 'Degustação: até 3 questões por treino, com questões de exemplo. ' : ''}O treino mostra o resultado na hora, sem nota de corte e sem cronômetro.
+        </p>
       </section>
     </div>
   );

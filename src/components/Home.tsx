@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { AttemptRecord, Cert, Feedback } from '../types';
-import { EXAMS, formatClock } from '../lib/exam';
+import { EXAMS, TRIAL, formatClock } from '../lib/exam';
 import { ConfirmDialog, Icon } from './ui';
 import { StartDialog } from './StartDialog';
 
@@ -14,6 +14,9 @@ interface Props {
   onClearHistory: () => Promise<string | null>;
   errorCount: number;
   signedIn: boolean;
+  /** Degustação: conta sem liberação (ou sem login, que precisa entrar antes). */
+  trial?: 'conta' | 'entrar' | null;
+  onLogin?: () => void;
 }
 
 const DETAILS: Record<Cert, string[]> = {
@@ -22,12 +25,16 @@ const DETAILS: Record<Cert, string[]> = {
   CPRO_I: ['40 questões', '2h30 de prova', 'Aprovação: 28 acertos (70%)'],
 };
 
-export function Home({ history, onStart, onProgress, onPlan, onTrain, onClearHistory, errorCount, signedIn }: Props) {
+export function Home({ history, onStart, onProgress, onPlan, onTrain, onClearHistory, errorCount, signedIn, trial = null, onLogin }: Props) {
   const [asking, setAsking] = useState(false);
   const [starting, setStarting] = useState<Cert | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'warn'; text: string } | null>(null);
   const hasData = history.length > 0 || errorCount > 0;
+  const [howOpen, setHowOpen] = useState(false);
+  const login = trial === 'entrar';
+  /** Sem login, os atalhos levam a entrar na conta. */
+  const go = (fn: () => void) => () => (login && onLogin ? onLogin() : fn());
 
   const clear = async () => {
     setBusy(true);
@@ -39,44 +46,102 @@ export function Home({ history, onStart, onProgress, onPlan, onTrain, onClearHis
 
   return (
     <>
+      {trial && (
+        <section className="trial-banner" role="status">
+          <span className="trial-ico"><Icon name="star" /></span>
+          <div>
+            <strong>{login ? 'Experimente grátis' : 'Você está na versão de degustação'}</strong>
+            <p>
+              {login
+                ? 'Entre ou crie sua conta para fazer a degustação: simulado da CPA com 5 questões e 1 mapa de decisão.'
+                : 'Simulado da CPA com 5 questões e 1 mapa de decisão. São questões de exemplo, próprias do projeto (não são da Anbima).'}
+            </p>
+            {!login && howOpen && (
+              <p className="trial-how">
+                Sua conta já está com o administrador. Assim que ela for liberada, as três certificações, o banco completo e todos os
+                recursos ficam disponíveis — basta entrar de novo.
+              </p>
+            )}
+          </div>
+          {login ? (
+            <button className="btn" onClick={onLogin}>Entrar ou criar conta</button>
+          ) : (
+            <button className="btn" aria-expanded={howOpen} onClick={() => setHowOpen(!howOpen)}>
+              Como liberar o acesso completo
+            </button>
+          )}
+        </section>
+      )}
+
       <section className="hero">
         <h1>Simulado Anbima</h1>
         <p>Treine no formato da prova real. A cada resposta você vê na hora se acertou e, se errou, entende o porquê.</p>
       </section>
 
       <section className="grid" aria-label="Escolha a certificação">
-        {(Object.keys(EXAMS) as Cert[]).map((cert) => (
-          <article className="card cert-card" key={cert}>
-            <h2>{EXAMS[cert].label}</h2>
-            <p className="muted">{EXAMS[cert].fullName}</p>
-            <ul className="chips">
-              {DETAILS[cert].map((d) => (
-                <li key={d}>{d}</li>
-              ))}
-            </ul>
-            <button className="btn btn-primary btn-block" onClick={() => setStarting(cert)}>
-              Iniciar simulado {EXAMS[cert].label}
-            </button>
-          </article>
-        ))}
+        {(Object.keys(EXAMS) as Cert[]).map((cert) => {
+          if (!trial) {
+            return (
+              <article className="card cert-card" key={cert}>
+                <h2>{EXAMS[cert].label}</h2>
+                <p className="muted">{EXAMS[cert].fullName}</p>
+                <ul className="chips">
+                  {DETAILS[cert].map((d) => (
+                    <li key={d}>{d}</li>
+                  ))}
+                </ul>
+                <button className="btn btn-primary btn-block" onClick={() => setStarting(cert)}>
+                  Iniciar simulado {EXAMS[cert].label}
+                </button>
+              </article>
+            );
+          }
+          return (
+            <article className={cert === TRIAL.cert ? 'card cert-card is-trial' : 'card cert-card is-locked'} key={cert} aria-disabled={cert !== TRIAL.cert || undefined}>
+              <div className="cert-top">
+                <h2>{EXAMS[cert].label}</h2>
+                {cert === TRIAL.cert ? (
+                  <span className="seal"><Icon name="star" size={13} />Degustação</span>
+                ) : (
+                  <span className="lock-badge"><Icon name="lock" size={13} />Acesso completo</span>
+                )}
+              </div>
+              <p className="muted">{EXAMS[cert].fullName}</p>
+              <ul className="chips">
+                {(cert === TRIAL.cert ? ['5 questões + 1 mapa', 'Sem limite de tempo', 'Questões de exemplo'] : DETAILS[cert].slice(0, 2)).map((d) => (
+                  <li key={d}>{d}</li>
+                ))}
+              </ul>
+              {cert !== TRIAL.cert ? (
+                <button className="btn btn-block btn-locked" disabled>
+                  <Icon name="lock" size={16} />Disponível após a liberação
+                </button>
+              ) : login ? (
+                <button className="btn btn-primary btn-block" onClick={onLogin}>Entrar para começar</button>
+              ) : (
+                <button className="btn btn-primary btn-block" onClick={() => setStarting(cert)}>Iniciar degustação CPA</button>
+              )}
+            </article>
+          );
+        })}
       </section>
 
       <section className="tools" aria-label="Acompanhamento">
-        <button className="card tool" onClick={onTrain}>
+        <button className="card tool" onClick={go(onTrain)}>
           <span className="tool-icon"><Icon name="target" /></span>
           <span className="tool-text">
             <strong>Treino focado{errorCount > 0 && <span className="badge">{errorCount}</span>}</strong>
             <span className="muted small">Refaça seus erros ou treine só um tema</span>
           </span>
         </button>
-        <button className="card tool" onClick={onProgress}>
+        <button className="card tool" onClick={go(onProgress)}>
           <span className="tool-icon"><Icon name="chart" /></span>
           <span className="tool-text">
             <strong>Meu desempenho</strong>
             <span className="muted small">Evolução, temas a reforçar e prontidão</span>
           </span>
         </button>
-        <button className="card tool" onClick={onPlan}>
+        <button className="card tool" onClick={go(onPlan)}>
           <span className="tool-icon"><Icon name="calendar" /></span>
           <span className="tool-text">
             <strong>Plano de estudos</strong>

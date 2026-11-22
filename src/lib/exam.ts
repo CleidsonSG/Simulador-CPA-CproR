@@ -235,3 +235,16 @@ export function formatClock(totalSeconds: number): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${pad(h)}:${pad(m)}:${pad(ss)}`;
 }
+
+/** Degustação (conta sem liberação): 5 questões de múltipla escolha + 1 mapa de decisão, só da CPA. */
+export const TRIAL = { cert: 'CPA' as Cert, mc: 5, maps: 1, trainMax: 3 };
+
+/**
+ * Prova da degustação: sorteia 5 questões de múltipla escolha e 1 mapa completo (as 2 questões dele,
+ * em bloco, no fim). Usa só o banco recebido — na degustação, o de exemplo.
+ */
+export function buildTrial(bank: readonly Question[], scenarios: readonly Scenario[], rng: () => number = Math.random): Question[] {
+  const mc = shuffle(bank.filter((q) => q.cert === TRIAL.cert && !q.scenarioCode), rng).slice(0, TRIAL.mc);
+  const maps = shuffle(completeSets(TRIAL.cert, bank, scenarios).filter((s) => s.scenario.kind === 'mapa'), rng).slice(0, TRIAL.maps);
+  return [...mc, ...maps.flatMap((s) => s.questions)].map((q) => present(q, rng));
+}

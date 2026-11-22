@@ -6,7 +6,7 @@ import { REVIEW_RULES, buildPlan, fmtMin, type Block } from '../lib/plan';
 import { loadCycleDone, loadPlanPrefs, saveCycleDone, savePlanPrefs, type PlanPrefs } from '../lib/storage';
 import { loadQuestions } from '../data/source';
 import { questionsPerMacro, topicWeights } from '../data/matrix';
-import { LevelTag } from './ui';
+import { CertTabs, LevelTag, Locked } from './ui';
 import { WeekZoom } from './WeekZoom';
 
 interface Props {
@@ -14,6 +14,8 @@ interface Props {
   history: AttemptRecord[];
   onBack: () => void;
   onCert: (c: Cert) => void;
+  /** Degustação: prévia com os 3 primeiros temas; semana, agenda e PDF bloqueados. */
+  trial?: boolean;
 }
 
 const fmtDate = (d?: Date) => (d ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '');
@@ -21,7 +23,9 @@ const DAYS = [2, 3, 4, 5, 6, 7];
 const MINUTES = [30, 45, 60, 90, 120, 150, 180];
 const levelClass = (b: Pick<Block, 'level' | 'known'>) => (b.known ? `seg-${b.level}` : 'seg-none');
 
-export function Plan({ cert, history, onBack, onCert }: Props) {
+const LABELS = Object.fromEntries((Object.keys(EXAMS) as Cert[]).map((c) => [c, EXAMS[c].label])) as Record<Cert, string>;
+
+export function Plan({ cert, history, onBack, onCert, trial = false }: Props) {
   const cfg = EXAMS[cert];
   const [prefs, setPrefs] = useState<PlanPrefs>(() => loadPlanPrefs());
   const [bank, setBank] = useState<Question[] | null>(null);
@@ -72,13 +76,7 @@ export function Plan({ cert, history, onBack, onCert }: Props) {
   };
 
   const tabs = (
-    <div className="tabs no-print" role="tablist" aria-label="Certificação">
-      {(Object.keys(EXAMS) as Cert[]).map((c) => (
-        <button key={c} role="tab" aria-selected={c === cert} className={c === cert ? 'tab tab-on' : 'tab'} onClick={() => onCert(c)}>
-          {EXAMS[c].label}
-        </button>
-      ))}
-    </div>
+    <CertTabs certs={Object.keys(EXAMS) as Cert[]} labels={LABELS} cert={cert} onCert={onCert} trial={trial} className="tabs no-print" />
   );
 
   if (bankTopics === null) {
@@ -113,6 +111,44 @@ export function Plan({ cert, history, onBack, onCert }: Props) {
   const accOf = (topic: string) => stats.find((s) => s.topic === topic);
   const today = new Date();
   const phaseNow = plan.phases.findIndex((p) => p.from && p.to && today >= p.from && today <= new Date(p.to.getTime() + 86400000));
+
+  if (trial) {
+    return (
+      <div className="stack plan">
+        <div className="row row-between">
+          <h1>Plano de estudos</h1>
+          <button className="btn btn-ghost" onClick={onBack}>← Voltar</button>
+        </div>
+        {tabs}
+        <section className="card" aria-labelledby="cycle-title">
+          <h2 id="cycle-title">Seu ciclo de temas (prévia)</h2>
+          <p className="muted small">Os 3 primeiros temas do seu ciclo, do que pede mais tempo ao que pede menos.</p>
+          <ol className="cycle">
+            {plan.cycle.slice(0, 3).map((b, idx) => (
+              <li key={b.topic}>
+                <div className="cycle-row">
+                  <span className="cycle-main">
+                    <strong><span className="cycle-n num">{idx + 1}.</span> {b.topic}</strong>
+                    <span className="small muted">{b.focus}</span>
+                  </span>
+                  <span className="cycle-side">
+                    <span className="num nowrap">{fmtMin(b.minutes)}</span>
+                    <LevelTag level={b.level} known={b.known} />
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+        <Locked title="Plano completo, semana, agenda e PDF">
+          <section className="card">
+            <h2>Sua semana de estudo</h2>
+            <WeekZoom cycle={plan.cycle} accOf={() => null} passPct={cfg.passPct} picked={null} onPick={() => undefined} />
+          </section>
+        </Locked>
+      </div>
+    );
+  }
 
   return (
     <div className={`stack plan${plan.cycle.length > 12 ? ' plan-many' : ''}`}>
