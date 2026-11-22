@@ -130,6 +130,12 @@ p { margin: 0 0 8px; }
 .feedback-ok { background: var(--ok-bg); color: var(--ok); }
 .feedback-bad { background: var(--bad-bg); }
 .feedback-bad strong { color: var(--bad); }
+/* Contestar: sobre o fundo vermelho do erro, fica sutilmente destacado (superfície + borda tingida). */
+.feedback .btn-appeal { margin-top: 4px; background: var(--surface); }
+@supports (background: color-mix(in srgb, red, blue)) {
+  .feedback-bad .btn-appeal { background: color-mix(in srgb, var(--surface) 65%, var(--bad-bg)); border-color: color-mix(in srgb, var(--bad) 40%, var(--border)); }
+  .feedback-bad .btn-appeal:hover { background: var(--surface); border-color: color-mix(in srgb, var(--bad) 65%, var(--border)); }
+}
 .explain { color: var(--text); margin-top: 6px; }
 .quiz-actions { display: flex; justify-content: space-between; gap: 10px; }
 .quiz-actions .btn-primary { flex: 1; max-width: 260px; }

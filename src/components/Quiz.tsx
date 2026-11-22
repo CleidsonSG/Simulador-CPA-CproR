@@ -203,7 +203,7 @@ export function Quiz({ cfg, questions, scenarios, mode, topic, minutes, isSample
           {appealed ? (
             <p className="muted small">✓ Recurso enviado. Será analisado.</p>
           ) : (
-            <button className="btn btn-ghost small" onClick={() => setAppealOpen(!appealOpen)} aria-expanded={appealOpen}>
+            <button className="btn btn-ghost small btn-appeal" onClick={() => setAppealOpen(!appealOpen)} aria-expanded={appealOpen}>
               Contestar esta questão
             </button>
           )}
