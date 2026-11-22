@@ -208,3 +208,22 @@ export async function fetchRemoteHistory(sb: SupabaseClient): Promise<AttemptRec
   }
   return toAttemptRecords(attempts, answers, topicById);
 }
+
+/* ───────────── Limpar histórico ───────────── */
+
+/** Tira da fila os simulados ainda não enviados do usuário (recursos continuam). */
+export function dropQueuedAttempts(userId: string): void {
+  saveOutbox(loadOutbox().filter((i) => !(i.userId === userId && i.kind === 'attempt')));
+}
+
+/** Apaga no banco os simulados do próprio usuário (migração 0008). Devolve quantos foram apagados. */
+export async function clearRemoteHistory(sb: SupabaseClient): Promise<number> {
+  const { data, error } = await sb.rpc('clear_my_history');
+  if (error) throw error;
+  return typeof data === 'number' ? data : 0;
+}
+
+/** Remove do histórico vindo do banco o que é anterior à última limpeza feita neste navegador. */
+export function afterClear(remote: readonly AttemptRecord[], clearedAt: string | null): AttemptRecord[] {
+  return clearedAt ? remote.filter((r) => r.date > clearedAt) : [...remote];
+}

@@ -348,5 +348,26 @@ await as(null, 'anon');
 await rejects(() => db.query(`select * from public.admin_list_users()`), 'anon não chama as funções do painel', { grant: true });
 await asOwner();
 
+console.log('\n7. Limpar o próprio histórico e excluir conta (0008)');
+const otherAtt = '00000000-0000-4000-8000-000000000001';
+await db.query(`insert into public.attempts (id, user_id, cert, started_at, finished_at, used_seconds, correct, total, pass_mark, passed)
+                values ($1,$2,'CPA',now(),now(),60,1,1,1,true)`, [otherAtt, U(1)]);
+await as(U(4));
+const cleared = await allows(() => q1(`select public.clear_my_history() n`), 'aluno limpa o próprio histórico');
+ok((cleared?.[0]?.n ?? 0) >= 1, 'apagou as tentativas do aluno');
+ok((await q1(`select count(*)::int n from public.attempts`))[0].n === 0, 'aluno não vê mais nenhuma tentativa');
+await asOwner();
+ok((await q1(`select count(*)::int n from public.attempt_answers where attempt_id = $1`, [attId]))[0].n === 0, 'respostas da tentativa apagada caem junto');
+ok((await q1(`select count(*)::int n from public.attempts where id = $1`, [otherAtt]))[0].n === 1, 'tentativas de outro aluno continuam');
+ok((await q1(`select count(*)::int n from public.appeals where user_id = $1`, [U(4)]))[0].n > 0, 'recursos já enviados continuam (não são histórico)');
+await as(null, 'anon');
+await rejects(() => db.query(`select public.clear_my_history()`), 'anon não chama clear_my_history', { grant: true });
+await as(null, 'service_role');
+await allows(() => q1(`select role, status from public.profiles where user_id = $1`, [U(1)]), 'Edge Function (service_role) lê o perfil antes de excluir');
+await asOwner();
+await db.exec(`delete from auth.users where id = '${U(4)}'`);
+ok((await q1(`select count(*)::int n from public.profiles where user_id = $1`, [U(4)]))[0].n === 0, 'conta excluída leva o perfil junto');
+ok((await q1(`select count(*)::int n from public.appeals where user_id is null`))[0].n > 0, 'recursos da conta excluída ficam, sem autor');
+
 console.log(failed ? `\n${failed} verificação(ões) FALHARAM` : '\nTodas as verificações passaram.');
 process.exit(failed ? 1 : 0);

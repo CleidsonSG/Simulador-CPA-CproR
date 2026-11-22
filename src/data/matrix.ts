@@ -11,28 +11,30 @@ import type { Cert, Question } from '../types';
 export interface Macro {
   id: number;
   name: string;
+  /** Nome curto, para resumos (ex.: "Análise do cliente"). */
+  short: string;
   /** Fração das questões da prova (soma 1). */
   share: number;
 }
 
 export const MACROS: Record<Cert, Macro[]> = {
   CPA: [
-    { id: 1, name: 'Estrutura e dinâmica do sistema financeiro nacional', share: 0.2 },
-    { id: 2, name: 'Produtos do mercado financeiro', share: 0.4 },
-    { id: 3, name: 'Relacionamento com o cliente (prospecção, atendimento e suporte)', share: 0.3 },
-    { id: 4, name: 'Inovação e desenvolvimento de mercado', share: 0.1 },
+    { id: 1, name: 'Estrutura e dinâmica do sistema financeiro nacional', short: 'Sistema financeiro nacional', share: 0.2 },
+    { id: 2, name: 'Produtos do mercado financeiro', short: 'Produtos do mercado financeiro', share: 0.4 },
+    { id: 3, name: 'Relacionamento com o cliente (prospecção, atendimento e suporte)', short: 'Relacionamento com o cliente', share: 0.3 },
+    { id: 4, name: 'Inovação e desenvolvimento de mercado', short: 'Inovação e desenvolvimento de mercado', share: 0.1 },
   ],
   CPRO_R: [
-    { id: 1, name: 'Prospecção e relacionamento com a pessoa investidora', share: 0.2 },
-    { id: 2, name: 'Análise de informações do cliente', share: 0.2 },
-    { id: 3, name: 'Indicação de investimentos', share: 0.4 },
-    { id: 4, name: 'Análise de portfólio e monitoramento da carteira', share: 0.2 },
+    { id: 1, name: 'Prospecção e relacionamento com a pessoa investidora', short: 'Prospecção e relacionamento', share: 0.2 },
+    { id: 2, name: 'Análise de informações do cliente', short: 'Análise do cliente', share: 0.2 },
+    { id: 3, name: 'Indicação de investimentos', short: 'Indicação de investimentos', share: 0.4 },
+    { id: 4, name: 'Análise de portfólio e monitoramento da carteira', short: 'Portfólio e monitoramento', share: 0.2 },
   ],
   CPRO_I: [
-    { id: 1, name: 'Produtos de investimentos', share: 0.4 },
-    { id: 2, name: 'Investimentos alternativos, digitais e no exterior', share: 0.15 },
-    { id: 3, name: 'Previdência complementar', share: 0.25 },
-    { id: 4, name: 'Gestão de risco, análise de carteiras e indicadores de performance', share: 0.2 },
+    { id: 1, name: 'Produtos de investimentos', short: 'Produtos de investimentos', share: 0.4 },
+    { id: 2, name: 'Investimentos alternativos, digitais e no exterior', short: 'Alternativos, digitais e exterior', share: 0.15 },
+    { id: 3, name: 'Previdência complementar', short: 'Previdência complementar', share: 0.25 },
+    { id: 4, name: 'Gestão de risco, análise de carteiras e indicadores de performance', short: 'Risco, carteiras e performance', share: 0.2 },
   ],
 };
 
@@ -68,5 +70,22 @@ export function topicWeights(cert: Cert, questions: readonly Pick<Question, 'top
   }
   const avg = known.length ? known.reduce((a, b) => a + b, 0) / known.length : 1;
   for (const topic of macroOfTopic.keys()) if (out[topic] === undefined) out[topic] = avg;
+  return out;
+}
+
+/**
+ * Nº de questões de cada macrotema numa prova de `total` questões: peso oficial × total,
+ * arredondado pelo maior resto (a soma sempre fecha o total da prova).
+ */
+export function questionsPerMacro(cert: Cert, total: number): { macro: Macro; questions: number }[] {
+  const raw = MACROS[cert].map((m) => ({ macro: m, exact: m.share * total }));
+  const out = raw.map((r) => ({ macro: r.macro, questions: Math.floor(r.exact) }));
+  let left = total - out.reduce((a, r) => a + r.questions, 0);
+  const order = raw.map((r, i) => ({ i, rest: r.exact - Math.floor(r.exact) })).sort((a, b) => b.rest - a.rest);
+  for (const { i } of order) {
+    if (left <= 0) break;
+    out[i].questions++;
+    left--;
+  }
   return out;
 }

@@ -76,3 +76,45 @@ export function pace(usedSeconds: number, answered: number, examMinutes: number,
   const allowed = (examMinutes * 60) / examTotal;
   return { perQuestion, allowed, ratio: allowed > 0 ? perQuestion / allowed : 0 };
 }
+
+export interface Summary {
+  count: number;
+  avg: number;
+  best: number;
+  last: number;
+  /** Diferença entre o último e o penúltimo simulado (pontos percentuais em fração). null com 1 simulado. */
+  delta: number | null;
+  /** Fração de simulados aprovados. */
+  passRate: number;
+  /** Segundos por questão, em média (só simulados que guardaram o tempo). null sem dado. */
+  secPerQuestion: number | null;
+}
+
+/** Indicadores do painel, a partir dos simulados do mais antigo ao mais novo. */
+export function summarize(attempts: readonly AttemptRecord[]): Summary {
+  const n = attempts.length;
+  if (n === 0) return { count: 0, avg: 0, best: 0, last: 0, delta: null, passRate: 0, secPerQuestion: null };
+  const p = attempts.map((a) => (a.total ? a.correct / a.total : 0));
+  const timed = attempts.filter((a) => (a.usedSeconds ?? 0) > 0 && a.total > 0);
+  return {
+    count: n,
+    avg: p.reduce((s, x) => s + x, 0) / n,
+    best: Math.max(...p),
+    last: p[n - 1],
+    delta: n > 1 ? p[n - 1] - p[n - 2] : null,
+    passRate: attempts.filter((a) => a.passed).length / n,
+    secPerQuestion: timed.length
+      ? timed.reduce((s, a) => s + (a.usedSeconds ?? 0), 0) / timed.reduce((s, a) => s + a.total, 0)
+      : null,
+  };
+}
+
+export type TopicSort = 'fraco' | 'volume' | 'az';
+
+/** Ordena e filtra os temas para a lista interativa de "Onde melhorar". */
+export function sortTopics(stats: readonly TopicStat[], sort: TopicSort, level: Level | 'todos' = 'todos'): TopicStat[] {
+  const list = stats.filter((s) => level === 'todos' || (s.known && s.level === level));
+  if (sort === 'az') return [...list].sort((a, b) => a.topic.localeCompare(b.topic, 'pt-BR'));
+  if (sort === 'volume') return [...list].sort((a, b) => b.total - a.total || a.acc - b.acc);
+  return [...list].sort((a, b) => Number(b.known) - Number(a.known) || a.acc - b.acc || b.total - a.total);
+}

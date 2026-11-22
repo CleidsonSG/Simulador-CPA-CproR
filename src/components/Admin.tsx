@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  ROLE_LABEL, STATUS_ICON, STATUS_LABEL, adminErrorMessage, cancelInvite, displayName, filterUsers, formatDate,
+  ROLE_LABEL, STATUS_ICON, STATUS_LABEL, adminErrorMessage, cancelInvite, deleteAccount, displayName, filterUsers, formatDate,
   getSignupAuto, inviteUser, isPendingInvite, listUsers, sendPasswordReset, setSignupAuto, setUser,
   type AdminUser, type UserRole, type UserStatus,
 } from '../lib/admin';
+import { ConfirmDialog, Icon } from './ui';
 
 interface Props {
   sb: SupabaseClient;
@@ -59,6 +60,7 @@ export function Admin({ sb, myId, onBack }: Props) {
   const [invRole, setInvRole] = useState<UserRole>('aluno');
   const [auto, setAuto] = useState<boolean | null>(null);
   const [sentReset, setSentReset] = useState<Record<string, boolean>>({});
+  const [toDelete, setToDelete] = useState<AdminUser | null>(null);
   const msgRef = useRef<HTMLParagraphElement>(null);
 
   const load = useCallback(async () => {
@@ -255,6 +257,15 @@ export function Admin({ sb, myId, onBack }: Props) {
                                   onConfirm={() => void run(key, () => setUser(sb, key, { status: 'bloqueado' }), `${u.email} bloqueado.`)}
                                 />
                               )}
+                              <button
+                                className="btn btn-ghost small-btn icon-only danger-text"
+                                disabled={busy !== null}
+                                aria-label={`Excluir a conta de ${u.email ?? displayName(u)}`}
+                                title="Excluir conta"
+                                onClick={() => setToDelete(u)}
+                              >
+                                <Icon name="trash" size={18} />
+                              </button>
                             </>
                           )}
                         </div>
@@ -357,6 +368,24 @@ export function Admin({ sb, myId, onBack }: Props) {
             </section>
           )}
         </>
+      )}
+
+      {toDelete && (
+        <ConfirmDialog
+          title="Excluir conta?"
+          confirmLabel="Excluir conta"
+          busy={busy === toDelete.user_id}
+          onCancel={() => setToDelete(null)}
+          onConfirm={() =>
+            void run(toDelete.user_id, () => deleteAccount(sb, toDelete.user_id), `Conta de ${toDelete.email ?? displayName(toDelete)} excluída.`).then(() => setToDelete(null))
+          }
+        >
+          <p>
+            A conta de <b>{toDelete.email ?? displayName(toDelete)}</b> será apagada de vez, com os simulados dela. A pessoa perde o acesso e, se quiser voltar, precisa
+            criar uma conta nova.
+          </p>
+          <p className="muted small">Recursos que ela já enviou continuam, sem o nome, para não perder a análise das questões. Para só tirar o acesso, use Bloquear.</p>
+        </ConfirmDialog>
       )}
 
       <div>

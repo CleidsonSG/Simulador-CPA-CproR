@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Answers, AttemptRecord, Cert, Mode, Question, Scenario } from './types';
 import { EXAMS, buildExam, grade, minutesFor, passMark, pickQuestions } from './lib/exam';
 import { applyResults, errorIds, type ErrorBook } from './lib/errors';
-import { loadErrors, loadHistory, loadLastExam, loadTheme, saveAttempt, saveErrors, saveHistory, saveLastExam, saveTheme } from './lib/storage';
+import { clearStudyData, loadClearedAt, loadErrors, loadHistory, loadLastExam, loadTheme, saveAttempt, saveErrors, saveHistory, saveLastExam, saveTheme } from './lib/storage';
 import { loadQuestions } from './data/source';
 import { supabase } from './lib/supabase';
 import { useSession } from './lib/auth';
-import { buildAttempt, enqueue, fetchRemoteHistory, flushOutbox, loadOutbox, mergeHistory, newId, originalIndex } from './lib/sync';
+import { afterClear, buildAttempt, clearRemoteHistory, dropQueuedAttempts, enqueue, fetchRemoteHistory, flushOutbox, loadOutbox, mergeHistory, newId, originalIndex } from './lib/sync';
 import { Account } from './components/Account';
 import { NewPassword } from './components/NewPassword';
 import { Admin } from './components/Admin';
@@ -82,7 +82,7 @@ export function App() {
     try {
       const r = await flushOutbox(supabase, userId);
       setPending(r.left);
-      const merged = mergeHistory(loadHistory(), await fetchRemoteHistory(supabase));
+      const merged = mergeHistory(loadHistory(), afterClear(await fetchRemoteHistory(supabase), loadClearedAt()));
       saveHistory(merged);
       setHistory(merged);
       setSyncMsg(null);
@@ -198,6 +198,24 @@ export function App() {
     [userId, sync],
   );
 
+  /** Limpar histórico: local sempre; no banco, os simulados da conta (migração 0008). */
+  const clearHistory = useCallback(async (): Promise<string | null> => {
+    clearStudyData();
+    if (userId) dropQueuedAttempts(userId);
+    setHistory([]);
+    setErrors({});
+    setPending(userId ? loadOutbox().filter((i) => i.userId === userId).length : 0);
+    if (!supabase || !userId || !approved) return null;
+    try {
+      await clearRemoteHistory(supabase);
+      return null;
+    } catch {
+      return navigator.onLine
+        ? 'Limpamos neste aparelho. No servidor ainda não foi possível (o administrador precisa aplicar a atualização 0008); os simulados antigos não voltam a aparecer aqui.'
+        : 'Limpamos neste aparelho. Sem internet, o servidor fica para depois; os simulados antigos não voltam a aparecer aqui.';
+    }
+  }, [userId, approved]);
+
   const home = () => setScreen({ name: 'home' });
 
   return (
@@ -295,7 +313,9 @@ export function App() {
             onProgress={() => setScreen({ name: 'progress', cert: lastCert })}
             onPlan={() => setScreen({ name: 'plan', cert: lastCert })}
             onTrain={() => setScreen({ name: 'train', cert: lastCert })}
+            onClearHistory={clearHistory}
             errorCount={Object.keys(errors).length}
+            signedIn={approved}
           />
         )}
 
@@ -304,6 +324,7 @@ export function App() {
             history={history}
             initialCert={screen.cert}
             onPlan={(cert) => setScreen({ name: 'plan', cert })}
+            onTrain={(cert, topic) => start({ cert, mode: 'treino', topic, count: 10 })}
             onBack={home}
           />
         )}

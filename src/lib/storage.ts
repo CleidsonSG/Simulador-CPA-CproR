@@ -122,3 +122,51 @@ export function saveHistory(list: AttemptRecord[]): void {
     /* ignore */
   }
 }
+
+/* ───────────── Limpar histórico ───────────── */
+
+const CLEARED_KEY = 'simulador-anbima:historico-limpo-em:v1';
+export const CYCLE_KEY = 'simulador-anbima:ciclo-feito:v1';
+
+/** Momento (ISO) da última limpeza: tentativas do banco anteriores a ele não voltam ao juntar o histórico. */
+export function loadClearedAt(): string | null {
+  try {
+    return localStorage.getItem(CLEARED_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Apaga, neste navegador, tudo o que vem dos simulados: histórico (Seu histórico e Meu desempenho),
+ * caderno de erros (Treino focado), rotina e ciclo do Plano de estudos e a última prova sorteada.
+ * Tema e conta continuam.
+ */
+export function clearStudyData(now: Date = new Date()): void {
+  try {
+    for (const k of [KEY, ERR_KEY, PLAN_KEY, SEEN_KEY, CYCLE_KEY]) localStorage.removeItem(k);
+    localStorage.setItem(CLEARED_KEY, now.toISOString());
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Etapas do ciclo marcadas como estudadas, por certificação. */
+export function loadCycleDone(cert: string): string[] {
+  try {
+    const all = JSON.parse(localStorage.getItem(CYCLE_KEY) ?? '{}') as Record<string, string[]>;
+    return Array.isArray(all[cert]) ? all[cert] : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCycleDone(cert: string, topics: string[]): void {
+  try {
+    const all = JSON.parse(localStorage.getItem(CYCLE_KEY) ?? '{}') as Record<string, string[]>;
+    all[cert] = topics;
+    localStorage.setItem(CYCLE_KEY, JSON.stringify(all));
+  } catch {
+    /* ignore */
+  }
+}

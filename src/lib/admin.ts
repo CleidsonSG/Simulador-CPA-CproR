@@ -82,6 +82,9 @@ export const inviteUser = (sb: SupabaseClient, email: string, role: UserRole, re
 
 export const cancelInvite = (sb: SupabaseClient, userId: string) => callFunction(sb, { acao: 'cancelar_convite', user_id: userId });
 
+/** Exclui a conta de vez (Auth + perfil + simulados). A Edge Function recusa a própria conta e o último admin. */
+export const deleteAccount = (sb: SupabaseClient, userId: string) => callFunction(sb, { acao: 'excluir_conta', user_id: userId });
+
 /** O próprio Supabase envia o link; o sistema nunca vê nem define senhas. */
 export async function sendPasswordReset(sb: SupabaseClient, email: string, redirectTo: string): Promise<void> {
   const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
