@@ -69,7 +69,7 @@ export function buildAttempt(
       passed: g.correct >= mark,
     },
     answers: questions
-      .filter((q) => isUuid(q.id))
+      .filter((q) => isUuid(q.id) && q.source !== 'ia')
       .map((q) => ({
         attempt_id: id,
         question_id: q.id,

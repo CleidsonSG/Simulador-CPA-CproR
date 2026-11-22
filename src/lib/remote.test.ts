@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { QUESTION_COLS, rowToQuestion, rowToScenario, type QuestionRow, type ScenarioRow } from '../data/remote';
+import { QUESTION_COLS, rowToQuestion, rowToScenario, trainingRowToQuestion, type QuestionRow, type ScenarioRow } from '../data/remote';
 import { buildAttempt, enqueue, flushOutbox, isPermanent, isUuid, loadOutbox, mergeHistory, newId, originalIndex, toAttemptRecords } from './sync';
 import { authMessage, validateCredentials } from './auth';
 import { sanitizeHtml } from './scenario';
@@ -145,5 +145,22 @@ describe('imagens no texto do caso', () => {
     expect(sanitizeHtml(`<img src="https://abc.supabase.co.evil.com/storage/v1/object/public/x.png">`, P)).toBe('');
     expect(sanitizeHtml(`<img src="${P}x.png" onerror="alert(1)">`, P)).not.toMatch(/onerror/);
     expect(sanitizeHtml(`<img src="${P}x.png">`)).toBe('');
+  });
+});
+
+describe('questões de treino (IA)', () => {
+  const U = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
+  it('linha de training_questions vira questão source=ia; inválida fica de fora', () => {
+    const q = trainingRowToQuestion({ id: U(7), cert: 'CPA', topic: 'Renda fixa', pd_code: '2.1.1', difficulty: 'Média', statement: 'S?', options: ['a', 'b', 'c', 'd'], correct_index: 2, explanation: 'A) … B) … C) … D) …' });
+    expect(q).toMatchObject({ source: 'ia', explanationSource: 'ia', correctIndex: 2, pdCode: '2.1.1' });
+    expect(trainingRowToQuestion({ id: U(8), cert: 'CPA', topic: 'x', pd_code: null, difficulty: 'Média', statement: 'S', options: ['a', 'b'], correct_index: 0, explanation: 'e' })).toBeNull();
+  });
+
+  it('a tentativa enviada ao banco nunca leva resposta de questão de IA', () => {
+    const oficial: Question = { id: U(1), cert: 'CPA', topic: 't', difficulty: 'Média', year: 2026, statement: 's', options: ['a', 'b', 'c', 'd'], correctIndex: 0, explanation: '', source: 'anbima' };
+    const ia: Question = { ...oficial, id: U(2), source: 'ia' };
+    const answers = { [U(1)]: 0, [U(2)]: 1 };
+    const r = buildAttempt(U(9), 'CPA', [oficial, ia], answers, grade([oficial, ia], answers), 1, 60, new Date());
+    expect(r.answers.map((a) => a.question_id)).toEqual([U(1)]);
   });
 });

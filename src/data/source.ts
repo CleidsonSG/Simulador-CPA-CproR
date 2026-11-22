@@ -1,7 +1,7 @@
 import type { Cert, Question, Scenario } from '../types';
 import { SAMPLE_QUESTIONS } from './sampleQuestions';
 import { SAMPLE_SCENARIOS, SAMPLE_SCENARIO_QUESTIONS } from './sampleScenarios';
-import { fetchBank } from './remote';
+import { fetchBank, fetchTrainingBank } from './remote';
 import { supabase } from '../lib/supabase';
 
 export interface QuestionBank {
@@ -34,4 +34,18 @@ export async function loadQuestions(cert: Cert, signedIn = false): Promise<Quest
   }
   await new Promise((r) => setTimeout(r, 350)); // simula rede; mostra o esqueleto
   return sampleBank(cert);
+}
+
+/**
+ * Questões de TREINO criadas por IA (só Treino focado; nunca simulado). Só com login aprovado.
+ * Se a tabela ainda não existir (migração 0009 não aplicada) ou falhar, devolve lista vazia:
+ * o treino segue só com as questões oficiais.
+ */
+export async function loadTrainingQuestions(cert: Cert, signedIn = false): Promise<Question[]> {
+  if (!supabase || !signedIn) return [];
+  try {
+    return await fetchTrainingBank(supabase, cert);
+  } catch {
+    return [];
+  }
 }

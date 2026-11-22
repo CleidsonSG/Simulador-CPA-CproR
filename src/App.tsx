@@ -3,7 +3,7 @@ import type { Answers, AttemptRecord, Cert, Mode, Question, Scenario } from './t
 import { EXAMS, TRIAL, buildExam, buildTrial, grade, minutesFor, passMark, pickQuestions } from './lib/exam';
 import { applyResults, errorIds, type ErrorBook } from './lib/errors';
 import { clearStudyData, loadClearedAt, loadErrors, loadHistory, loadLastExam, loadTheme, saveAttempt, saveErrors, saveHistory, saveLastExam, saveTheme } from './lib/storage';
-import { loadQuestions } from './data/source';
+import { loadQuestions, loadTrainingQuestions } from './data/source';
 import { supabase } from './lib/supabase';
 import { useSession } from './lib/auth';
 import { afterClear, buildAttempt, clearRemoteHistory, dropQueuedAttempts, enqueue, fetchRemoteHistory, flushOutbox, loadOutbox, mergeHistory, newId, originalIndex } from './lib/sync';
@@ -113,7 +113,9 @@ export function App() {
       try {
         const cfg = EXAMS[opts.cert];
         const bank = await loadQuestions(opts.cert, approved);
-        const single = bank.questions.filter((q) => !q.scenarioCode);
+        // Treino focado e revisão de erros também usam as questões de treino (IA) publicadas; o simulado nunca.
+        const training = opts.mode === 'prova' || opts.trial ? [] : await loadTrainingQuestions(opts.cert, approved);
+        const single = [...bank.questions.filter((q) => !q.scenarioCode), ...training];
         let questions: Question[];
         let minutes = 0;
         if (opts.trial && opts.mode === 'prova') {
@@ -339,6 +341,7 @@ export function App() {
             history={history}
             onCert={(cert) => setScreen({ name: 'plan', cert })}
             trial={trial}
+            signedIn={approved}
             onBack={() => setScreen({ name: 'progress', cert: screen.cert })}
           />
         )}
@@ -350,6 +353,7 @@ export function App() {
             errors={errors}
             onCert={(cert) => setScreen({ name: 'train', cert })}
             trial={trial}
+            signedIn={approved}
             onStart={start}
             onBack={home}
           />

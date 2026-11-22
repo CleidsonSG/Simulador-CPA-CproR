@@ -16,6 +16,8 @@ interface Props {
   onCert: (c: Cert) => void;
   /** Degustação: prévia com os 3 primeiros temas; semana, agenda e PDF bloqueados. */
   trial?: boolean;
+  /** Conta aprovada: temas do banco real. */
+  signedIn?: boolean;
 }
 
 const fmtDate = (d?: Date) => (d ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '');
@@ -25,7 +27,7 @@ const levelClass = (b: Pick<Block, 'level' | 'known'>) => (b.known ? `seg-${b.le
 
 const LABELS = Object.fromEntries((Object.keys(EXAMS) as Cert[]).map((c) => [c, EXAMS[c].label])) as Record<Cert, string>;
 
-export function Plan({ cert, history, onBack, onCert, trial = false }: Props) {
+export function Plan({ cert, history, onBack, onCert, trial = false, signedIn = false }: Props) {
   const cfg = EXAMS[cert];
   const [prefs, setPrefs] = useState<PlanPrefs>(() => loadPlanPrefs());
   const [bank, setBank] = useState<Question[] | null>(null);
@@ -38,13 +40,13 @@ export function Plan({ cert, history, onBack, onCert, trial = false }: Props) {
     setBank(null);
     setDone(loadCycleDone(cert));
     setPicked(null);
-    loadQuestions(cert)
+    loadQuestions(cert, signedIn && !trial)
       .then((b) => alive && setBank(b.questions))
       .catch(() => alive && setBank([]));
     return () => {
       alive = false;
     };
-  }, [cert]);
+  }, [cert, signedIn, trial]);
 
   useEffect(() => savePlanPrefs(prefs), [prefs]);
 

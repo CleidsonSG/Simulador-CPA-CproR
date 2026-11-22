@@ -257,7 +257,7 @@ export function Quiz({ cfg, questions, scenarios, mode, feedback = 'imediata', t
               )}
             </>
           )}
-          {chosen !== q.correctIndex && (appealed ? (
+          {chosen !== q.correctIndex && q.source !== 'ia' && (appealed ? (
             <p className="muted small">✓ Recurso enviado. Será analisado.</p>
           ) : (
             <button className="btn btn-ghost small btn-appeal" onClick={() => setAppealOpen(!appealOpen)} aria-expanded={appealOpen}>

@@ -36,6 +36,53 @@ export const QUESTION_COLS =
   'id,cert,topic,pd_code,difficulty,year,statement,options,correct_index,explanation,source,explanation_source,scenario_code,scenario_pos,source_code';
 export const SCENARIO_COLS = 'code,cert,kind,year,topic,pd_code,body,source';
 
+/** Questão de TREINO criada por IA (tabela training_questions, migração 0009). Nunca vai para o simulado. */
+export interface TrainingRow {
+  id: string;
+  cert: Cert;
+  topic: string;
+  pd_code: string | null;
+  difficulty: Difficulty;
+  statement: string;
+  options: unknown;
+  correct_index: number;
+  explanation: string;
+}
+export const TRAINING_COLS = 'id,cert,topic,pd_code,difficulty,statement,options,correct_index,explanation';
+
+/** Linha de treino → Question com source='ia' (o app exibe a etiqueta "Gerada por IA"). */
+export function trainingRowToQuestion(r: TrainingRow): Question | null {
+  const opts = Array.isArray(r.options) ? r.options.map(String) : null;
+  if (!opts || opts.length !== 4 || r.correct_index < 0 || r.correct_index > 3) return null;
+  const q: Question = {
+    id: r.id,
+    cert: r.cert,
+    topic: r.topic,
+    difficulty: r.difficulty,
+    year: 2026,
+    statement: r.statement,
+    options: opts,
+    correctIndex: r.correct_index,
+    explanation: r.explanation ?? '',
+    source: 'ia',
+    explanationSource: 'ia',
+  };
+  if (r.pd_code) q.pdCode = r.pd_code;
+  return q;
+}
+
+/** Questões de treino publicadas da certificação (só o Treino focado usa). */
+export async function fetchTrainingBank(sb: SupabaseClient, cert: Cert): Promise<Question[]> {
+  const { data, error } = await sb
+    .from('training_questions')
+    .select(TRAINING_COLS)
+    .eq('cert', cert)
+    .eq('status', 'publicada')
+    .limit(2000);
+  if (error) throw error;
+  return ((data ?? []) as TrainingRow[]).map(trainingRowToQuestion).filter((q): q is Question => q !== null);
+}
+
 /** Linha inválida (alternativas ≠ 4, gabarito fora de 0–3, ano < 2026) vira null e fica fora da prova. */
 export function rowToQuestion(r: QuestionRow): Question | null {
   const opts = Array.isArray(r.options) ? r.options.map(String) : null;

@@ -3,7 +3,7 @@ import type { AttemptRecord, Cert, Mode } from '../types';
 import { EXAMS, TRIAL } from '../lib/exam';
 import { aggregateTopics, toStats } from '../lib/analysis';
 import { errorIds, type ErrorBook } from '../lib/errors';
-import { loadQuestions } from '../data/source';
+import { loadQuestions, loadTrainingQuestions } from '../data/source';
 import { CertTabs, LevelTag, Locked } from './ui';
 
 export interface StartOpts {
@@ -26,30 +26,36 @@ interface Props {
   onBack: () => void;
   /** Degustação: só CPA, até 3 questões por tema, sem caderno de erros. */
   trial?: boolean;
+  /** Conta aprovada: conta as questões do banco real e as de treino. */
+  signedIn?: boolean;
 }
 
 const LABELS = Object.fromEntries((Object.keys(EXAMS) as Cert[]).map((c) => [c, EXAMS[c].label])) as Record<Cert, string>;
 
-export function Train({ cert, history, errors, onCert, onStart, onBack, trial = false }: Props) {
+export function Train({ cert, history, errors, onCert, onStart, onBack, trial = false, signedIn = false }: Props) {
   const [counts, setCounts] = useState<Record<string, number> | null>(null);
+  const [nTraining, setNTraining] = useState(0);
   const [size, setSize] = useState(trial ? TRIAL.trainMax : 10);
   const sizes = trial ? [TRIAL.trainMax] : [5, 10, 20];
 
   useEffect(() => {
     let alive = true;
     setCounts(null);
-    loadQuestions(cert)
-      .then((b) => {
+    const full = signedIn && !trial;
+    Promise.all([loadQuestions(cert, full), full ? loadTrainingQuestions(cert, true) : Promise.resolve([])])
+      .then(([b, extra]) => {
         if (!alive) return;
         const m: Record<string, number> = {};
-        b.questions.forEach((q) => (m[q.topic] = (m[q.topic] ?? 0) + 1));
+        // Só múltipla escolha conta: questões de conjunto ficam fora do treino.
+        [...b.questions.filter((q) => !q.scenarioCode), ...extra].forEach((q) => (m[q.topic] = (m[q.topic] ?? 0) + 1));
         setCounts(m);
+        setNTraining(extra.length);
       })
       .catch(() => alive && setCounts({}));
     return () => {
       alive = false;
     };
-  }, [cert]);
+  }, [cert, signedIn, trial]);
 
   const nErrors = errorIds(errors, cert).length;
   const stats = useMemo(
@@ -153,6 +159,7 @@ export function Train({ cert, history, errors, onCert, onStart, onBack, trial = 
         )}
         <p className="muted small">
           {trial ? 'Degustação: até 3 questões por treino, com questões de exemplo. ' : ''}O treino mostra o resultado na hora, sem nota de corte e sem cronômetro.
+          {nTraining > 0 && ` Inclui ${nTraining} ${nTraining === 1 ? 'questão de treino criada por IA e revisada, marcada' : 'questões de treino criadas por IA e revisadas, marcadas'} como "Gerada por IA" (nunca entram no simulado).`}
         </p>
       </section>
     </div>
