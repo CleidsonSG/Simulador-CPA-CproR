@@ -309,7 +309,7 @@ export function App() {
         {screen.name === 'home' && (
           <Home
             history={history}
-            onStart={(cert) => start({ cert, mode: 'prova' })}
+            onStart={(cert, feedback) => void start({ cert, mode: 'prova', feedback })}
             onProgress={() => setScreen({ name: 'progress', cert: lastCert })}
             onPlan={() => setScreen({ name: 'plan', cert: lastCert })}
             onTrain={() => setScreen({ name: 'train', cert: lastCert })}
@@ -379,6 +379,7 @@ export function App() {
             questions={screen.questions}
             scenarios={screen.scenarios}
             mode={screen.opts.mode}
+            feedback={screen.opts.feedback ?? 'imediata'}
             topic={screen.opts.topic}
             minutes={screen.minutes}
             isSample={screen.isSample}
@@ -399,6 +400,7 @@ export function App() {
             isSample={screen.isSample}
             size={screen.questions.length}
             mode={screen.opts.mode}
+            feedback={screen.opts.feedback ?? 'imediata'}
             topic={screen.opts.topic}
             onTrain={(topic) => start({ cert: screen.opts.cert, mode: 'treino', topic, count: 10 })}
             onRetry={() =>

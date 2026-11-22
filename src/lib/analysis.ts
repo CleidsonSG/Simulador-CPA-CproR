@@ -1,4 +1,5 @@
-import type { AttemptRecord, Cert, TopicScore } from '../types';
+import type { Answers, AttemptRecord, Cert, Question, TopicScore } from '../types';
+import { MACROS, macroOf } from '../data/matrix';
 
 export type Level = 'critico' | 'atencao' | 'ok';
 
@@ -117,4 +118,49 @@ export function sortTopics(stats: readonly TopicStat[], sort: TopicSort, level: 
   if (sort === 'az') return [...list].sort((a, b) => a.topic.localeCompare(b.topic, 'pt-BR'));
   if (sort === 'volume') return [...list].sort((a, b) => b.total - a.total || a.acc - b.acc);
   return [...list].sort((a, b) => Number(b.known) - Number(a.known) || a.acc - b.acc || b.total - a.total);
+}
+
+export interface TopicResult {
+  topic: string;
+  n: number;
+  c: number;
+  /** Questões respondidas e erradas (em branco ficam de fora). */
+  wrong: Question[];
+}
+export interface MacroResult {
+  /** 1–4 conforme o Programa Detalhado; 0 = questões sem código do PD. */
+  id: number;
+  name: string;
+  n: number;
+  c: number;
+  topics: TopicResult[];
+}
+
+/** Resultado de uma prova por macrotema e por tema (temas do mais fraco ao mais forte). */
+export function macroBreakdown(cert: Cert, questions: readonly Question[], answers: Answers): MacroResult[] {
+  const groups = new Map<number, MacroResult>();
+  for (const q of questions) {
+    const id = macroOf(q.pdCode) ?? 0;
+    let g = groups.get(id);
+    if (!g) {
+      const def = MACROS[cert].find((m) => m.id === id);
+      g = { id, name: def ? def.short : 'Outros temas', n: 0, c: 0, topics: [] };
+      groups.set(id, g);
+    }
+    const chosen = answers[q.id];
+    const ok = chosen === q.correctIndex;
+    g.n++;
+    if (ok) g.c++;
+    let t = g.topics.find((x) => x.topic === q.topic);
+    if (!t) {
+      t = { topic: q.topic, n: 0, c: 0, wrong: [] };
+      g.topics.push(t);
+    }
+    t.n++;
+    if (ok) t.c++;
+    else if (chosen !== undefined) t.wrong.push(q);
+  }
+  return [...groups.values()]
+    .sort((a, b) => (a.id || 99) - (b.id || 99))
+    .map((g) => ({ ...g, topics: [...g.topics].sort((a, b) => a.c / a.n - b.c / b.n || b.n - a.n || a.topic.localeCompare(b.topic, 'pt-BR')) }));
 }

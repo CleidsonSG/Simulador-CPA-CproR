@@ -29,7 +29,7 @@ export function WeekZoom({ cycle, accOf, passPct, picked, onPick }: Props) {
   const groups = ORDER.map((g) => ({ g, items: cycle.filter((b) => groupOf(b) === g) }))
     .filter((x) => x.items.length > 0)
     .map((x) => ({ ...x, minutes: x.items.reduce((s, b) => s + b.minutes, 0) }));
-  const [open, setOpen] = useState<Group | null>(() => groups[0]?.g ?? null);
+  const [open, setOpen] = useState<Group | null>(null); // começa recolhido; o usuário abre o nível que quiser
   const [all, setAll] = useState(false);
   const [box, width] = useWidth<HTMLDivElement>();
   const barRef = useRef<HTMLDivElement>(null);
@@ -76,6 +76,8 @@ export function WeekZoom({ cycle, accOf, passPct, picked, onPick }: Props) {
           </button>
         ))}
       </div>
+
+      {!cur && <p className="small muted no-print wz-hint">Toque num nível acima para ver os temas.</p>}
 
       {cur && (
         <div className="wz-zoom no-print" key={cur.g}>

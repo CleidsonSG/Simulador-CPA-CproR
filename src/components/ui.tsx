@@ -41,6 +41,7 @@ export function ConfirmDialog({
   children,
   confirmLabel,
   busy = false,
+  danger = true,
   onConfirm,
   onCancel,
 }: {
@@ -48,6 +49,8 @@ export function ConfirmDialog({
   children: React.ReactNode;
   confirmLabel: string;
   busy?: boolean;
+  /** false = ação comum (botão azul), não destrutiva. */
+  danger?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -65,7 +68,7 @@ export function ConfirmDialog({
       <div className="dialog-body">{children}</div>
       <div className="dialog-actions">
         <button className="btn" onClick={onCancel} disabled={busy} autoFocus>Cancelar</button>
-        <button className="btn btn-danger-solid" onClick={onConfirm} disabled={busy} aria-busy={busy}>
+        <button className={danger ? "btn btn-danger-solid" : "btn btn-primary"} onClick={onConfirm} disabled={busy} aria-busy={busy}>
           {busy ? 'Aguarde…' : confirmLabel}
         </button>
       </div>

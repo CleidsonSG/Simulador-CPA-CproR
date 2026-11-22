@@ -170,3 +170,22 @@ export function saveCycleDone(cert: string, topics: string[]): void {
     /* ignore */
   }
 }
+
+const FEEDBACK_KEY = 'simulador-anbima:correcao:v1';
+
+/** Última escolha de correção do simulado (imediata ou no final). */
+export function loadFeedback(): 'imediata' | 'final' {
+  try {
+    return localStorage.getItem(FEEDBACK_KEY) === 'final' ? 'final' : 'imediata';
+  } catch {
+    return 'imediata';
+  }
+}
+
+export function saveFeedback(f: 'imediata' | 'final'): void {
+  try {
+    localStorage.setItem(FEEDBACK_KEY, f);
+  } catch {
+    /* ignore */
+  }
+}

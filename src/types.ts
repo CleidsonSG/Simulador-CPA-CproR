@@ -1,6 +1,8 @@
 export type Cert = 'CPA' | 'CPRO_R' | 'CPRO_I';
 /** prova = simulado completo; treino = só um tema; erros = refazer o caderno de erros. */
 export type Mode = 'prova' | 'treino' | 'erros';
+/** Simulado: correção a cada questão (imediata) ou só no fim, como na prova real (final). */
+export type Feedback = 'imediata' | 'final';
 export type Difficulty = 'Baixa' | 'Média' | 'Alta';
 
 export interface Question {
@@ -29,6 +31,8 @@ export interface Question {
    */
   optionOrder?: number[];
   /** Questão de conjunto (mapa de decisão ou caso): código do cenário e posição (1 ou 2). */
+  /** Nº da questão na origem (Anbima), ex.: "000084". Questões de exemplo não têm. */
+  sourceCode?: string;
   scenarioCode?: string;
   scenarioPos?: number;
 }

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { rowToQuestion, rowToScenario, type QuestionRow, type ScenarioRow } from '../data/remote';
+import { QUESTION_COLS, rowToQuestion, rowToScenario, type QuestionRow, type ScenarioRow } from '../data/remote';
 import { buildAttempt, enqueue, flushOutbox, isPermanent, isUuid, loadOutbox, mergeHistory, newId, originalIndex, toAttemptRecords } from './sync';
 import { authMessage, validateCredentials } from './auth';
 import { sanitizeHtml } from './scenario';
@@ -29,6 +29,9 @@ const qrow = (over: Partial<QuestionRow> = {}): QuestionRow => ({
 describe('linhas do banco → app', () => {
   it('converte questão e descarta inválidas', () => {
     expect(rowToQuestion(qrow())).toMatchObject({ id: U(1), correctIndex: 1, pdCode: '2.1.1', explanation: '' });
+    expect(rowToQuestion(qrow({ source_code: '000084' }))?.sourceCode).toBe('000084');
+    expect(rowToQuestion(qrow())?.sourceCode).toBeUndefined();
+    expect(QUESTION_COLS.split(',')).toContain('source_code');
     expect(rowToQuestion(qrow({ options: ['a', 'b', 'c'] }))).toBeNull();
     expect(rowToQuestion(qrow({ year: 2025 }))).toBeNull();
     expect(rowToQuestion(qrow({ scenario_code: 'S1', scenario_pos: 2 }))).toMatchObject({ scenarioCode: 'S1', scenarioPos: 2 });

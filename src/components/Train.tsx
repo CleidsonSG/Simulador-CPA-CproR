@@ -11,6 +11,8 @@ export interface StartOpts {
   mode: Mode;
   topic?: string;
   count?: number;
+  /** Só no simulado (mode 'prova'). Ausente = imediata. */
+  feedback?: import('../types').Feedback;
 }
 
 interface Props {

@@ -1,8 +1,11 @@
-import type { Answers, ExamConfig, Mode, Question, Scenario } from '../types';
+import { useState } from 'react';
+import type { Answers, ExamConfig, Feedback, Mode, Question, Scenario } from '../types';
 import { formatClock, grade, passMark } from '../lib/exam';
 import { pace, toStats } from '../lib/analysis';
 import { TopicBars } from './ui';
 import { CaseText, MapTranscript } from './Scenario';
+import { ResultScore } from './ResultScore';
+import { Explanation } from './Explanation';
 import type { MapPaths } from './Quiz';
 
 interface Props {
@@ -19,16 +22,19 @@ interface Props {
   onPlan: () => void;
   onProgress: () => void;
   mode: Mode;
+  /** 'final': a revisão lista todas as questões comentadas (não só os erros). */
+  feedback?: Feedback;
   topic?: string;
   onTrain: (topic: string) => void;
 }
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
-export function Result({ cfg, questions, scenarios, paths, answers, usedSeconds, isSample, size, onRetry, onHome, onPlan, onProgress, mode, topic, onTrain }: Props) {
+export function Result({ cfg, questions, scenarios, paths, answers, usedSeconds, isSample, size, onRetry, onHome, onPlan, onProgress, mode, feedback = 'imediata', topic, onTrain }: Props) {
+  const full = mode === 'prova' && feedback === 'final';
+  const [filter, setFilter] = useState<'todas' | 'erradas' | 'certas' | 'branco'>('todas');
   const g = grade(questions, answers);
   const mark = passMark(cfg, size);
-  const passed = g.correct >= mark;
   const wrong = questions.filter((q) => !q.scenarioCode && answers[q.id] !== q.correctIndex);
   const setQs = questions.filter((q) => q.scenarioCode);
   const setCorrect = setQs.filter((q) => answers[q.id] === q.correctIndex).length;
@@ -44,22 +50,31 @@ export function Result({ cfg, questions, scenarios, paths, answers, usedSeconds,
   const p = pace(usedSeconds, answered, cfg.minutes, cfg.total);
   const blank = questions.length - answered;
 
+  /** Do nº da questão no cartão até a correção comentada dela (mostra todas antes, se houver filtro). */
+  const jump = (id: string) => {
+    setFilter('todas');
+    window.setTimeout(() => {
+      const el = document.getElementById(`rev-${id}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('rev-flash');
+      window.setTimeout(() => el.classList.remove('rev-flash'), 1800);
+    }, 60);
+  };
+
   return (
     <div className="result">
       {mode === 'prova' ? (
-        <section className={passed ? 'card score score-ok' : 'card score score-bad'} aria-live="polite">
-          <p className="muted small">{cfg.label} · tempo usado {formatClock(usedSeconds)}</p>
-          <div className="score-num">
-            {g.correct}
-            <span>/{g.total}</span>
-          </div>
-          <p className="verdict">{passed ? '✓ Aprovado' : '✗ Reprovado'}</p>
-          <p className="muted">
-            Nota de corte: {mark} acertos ({Math.round(cfg.passPct * 100)}%). Você fez {Math.round(g.pct * 100)}%.
-          </p>
-          {!passed && <p className="small">Faltaram {mark - g.correct} acertos para a nota de corte.</p>}
-          {isSample && <p className="small muted">Resultado com questões de exemplo.</p>}
-        </section>
+        <ResultScore
+          cfg={cfg}
+          questions={questions}
+          answers={answers}
+          mark={mark}
+          usedSeconds={usedSeconds}
+          isSample={isSample}
+          onTrain={onTrain}
+          onJump={jump}
+        />
       ) : (
         <section className="card score" aria-live="polite">
           <p className="muted small">
@@ -140,9 +155,10 @@ export function Result({ cfg, questions, scenarios, paths, answers, usedSeconds,
                       const mine = answers[q.id];
                       const ok = mine === q.correctIndex;
                       return (
-                        <li key={q.id}>
+                        <li key={q.id} id={`rev-${q.id}`}>
                           <p className="q-statement small-q">
-                            <span className={ok ? 'tag tag-ok' : 'tag tag-bad'}>{ok ? '✓ Acertou' : '✗ Errou'}</span> {q.statement}
+                            <span className={ok ? 'tag tag-ok' : 'tag tag-bad'}>{ok ? '✓ Acertou' : '✗ Errou'}</span>{' '}
+                            {q.sourceCode && <span className="tag tag-code num">Nº {q.sourceCode}</span>} {q.statement}
                           </p>
                           {!ok && (
                             <p>
@@ -156,7 +172,7 @@ export function Result({ cfg, questions, scenarios, paths, answers, usedSeconds,
                               Correta: {LETTERS[q.correctIndex]}. {q.options[q.correctIndex]}
                             </span>
                           </p>
-                          <p className="explain">{q.explanation}</p>
+                          <Explanation q={q} mine={mine} />
                         </li>
                       );
                     })}
@@ -169,34 +185,61 @@ export function Result({ cfg, questions, scenarios, paths, answers, usedSeconds,
       )}
 
       <section className="card" aria-labelledby="rev-title">
-        <h2 id="rev-title">Revisão dos erros{setQs.length > 0 && " de múltipla escolha"} ({wrong.length})</h2>
-        {wrong.length === 0 ? (
-          <div className="empty-inline">
-            <p>Você não errou nenhuma questão. Excelente!</p>
-          </div>
-        ) : (
-          <ol className="review">
-            {wrong.map((q) => {
-              const mine = answers[q.id];
-              return (
-                <li key={q.id}>
-                  <p className="q-statement small-q">{q.statement}</p>
-                  <p>
-                    <span className="tag tag-bad">
-                      Sua resposta: {mine === undefined ? 'em branco' : `${LETTERS[mine]}. ${q.options[mine]}`}
-                    </span>
-                  </p>
-                  <p>
-                    <span className="tag tag-ok">
-                      Correta: {LETTERS[q.correctIndex]}. {q.options[q.correctIndex]}
-                    </span>
-                  </p>
-                  <p className="explain">{q.explanation}</p>
-                </li>
-              );
-            })}
-          </ol>
-        )}
+        {(() => {
+          const mc = questions.filter((q) => !q.scenarioCode);
+          const state = (q: Question) => (answers[q.id] === undefined ? 'branco' : answers[q.id] === q.correctIndex ? 'certas' : 'erradas');
+          const counts = { todas: mc.length, erradas: 0, certas: 0, branco: 0 } as Record<string, number>;
+          for (const q of mc) counts[state(q)]++;
+          const list = full ? mc.filter((q) => filter === 'todas' || state(q) === filter) : wrong;
+          const LABELS = { todas: 'Todas', erradas: 'Erradas', certas: 'Certas', branco: 'Em branco' } as const;
+          return (
+            <>
+              <h2 id="rev-title">
+                {full ? 'Correção comentada' : `Revisão dos erros${setQs.length > 0 ? ' de múltipla escolha' : ''}`} ({full ? mc.length : wrong.length})
+              </h2>
+              {full && (
+                <div className="chips-toggle review-filter" role="group" aria-label="Filtrar questões">
+                  {(Object.keys(LABELS) as (keyof typeof LABELS)[]).map((k) => (
+                    <button key={k} className={filter === k ? 'chip-btn is-on' : 'chip-btn'} aria-pressed={filter === k} onClick={() => setFilter(k)} disabled={counts[k] === 0 && k !== 'todas'}>
+                      {LABELS[k]} <span className="chip-n">{counts[k]}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {list.length === 0 ? (
+                <div className="empty-inline">
+                  <p>{full ? 'Nenhuma questão neste filtro.' : 'Você não errou nenhuma questão. Excelente!'}</p>
+                </div>
+              ) : (
+                <ol className="review">
+                  {list.map((q) => {
+                    const mine = answers[q.id];
+                    const ok = mine === q.correctIndex;
+                    return (
+                      <li key={q.id} id={`rev-${q.id}`}>
+                        <p className="q-statement small-q">
+                          {full && <span className={ok ? 'tag tag-ok' : 'tag tag-bad'}>{ok ? '✓ Acertou' : mine === undefined ? '○ Em branco' : '✗ Errou'}</span>}{' '}
+                          {q.sourceCode && <span className="tag tag-code num">Nº {q.sourceCode}</span>} {q.statement}
+                        </p>
+                        {!ok && (
+                          <p>
+                            <span className="tag tag-bad">Sua resposta: {mine === undefined ? 'em branco' : `${LETTERS[mine]}. ${q.options[mine]}`}</span>
+                          </p>
+                        )}
+                        <p>
+                          <span className="tag tag-ok">
+                            {ok ? 'Sua resposta (correta)' : 'Correta'}: {LETTERS[q.correctIndex]}. {q.options[q.correctIndex]}
+                          </span>
+                        </p>
+                        <Explanation q={q} mine={mine} />
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </>
+          );
+        })()}
       </section>
 
       <div className="quiz-actions wrap">

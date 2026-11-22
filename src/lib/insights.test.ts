@@ -64,3 +64,19 @@ describe('questões por macrotema (resumo do plano)', () => {
     for (const n of [7, 13, 33]) expect(questionsPerMacro('CPRO_I', n).reduce((a, r) => a + r.questions, 0)).toBe(n);
   });
 });
+
+describe('resultado por macrotema', () => {
+  it('agrupa pelo código do PD, conta acertos e lista só as erradas respondidas', async () => {
+    const { macroBreakdown } = await import('./analysis');
+    const mk = (id: string, pd: string | undefined, topic: string, correctIndex = 0) =>
+      ({ id, cert: 'CPA', topic, pdCode: pd, difficulty: 'Média', year: 2026, statement: id, options: ['a', 'b', 'c', 'd'], correctIndex, explanation: '', source: 'anbima', sourceCode: id }) as import('../types').Question;
+    const qs = [mk('1', '2.1.1', 'Renda fixa'), mk('2', '2.1.1', 'Renda fixa'), mk('3', '2.3.1', 'Fundos'), mk('4', '1.2.1', 'Política monetária'), mk('5', undefined, 'Sem PD')];
+    const r = macroBreakdown('CPA', qs, { '1': 0, '2': 1, '4': 0 }); // 3 e 5 em branco
+    expect(r.map((m) => [m.id, m.n, m.c])).toEqual([[1, 1, 1], [2, 3, 1], [0, 1, 0]]);
+    expect(r[1].name).toBe('Produtos do mercado financeiro');
+    const rf = r[1].topics.find((t) => t.topic === 'Renda fixa')!;
+    expect([rf.n, rf.c, rf.wrong.map((q) => q.id)]).toEqual([2, 1, ['2']]);
+    expect(r[1].topics.find((t) => t.topic === 'Fundos')!.wrong).toEqual([]); // em branco não entra
+    expect(r[2].name).toBe('Outros temas');
+  });
+});

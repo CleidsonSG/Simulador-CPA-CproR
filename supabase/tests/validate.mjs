@@ -80,7 +80,7 @@ for (const [m, n] of Object.entries(per)) {
 }
 
 console.log('0. Permissões (GRANT) — as mesmas operações do app, do histórico e da importação');
-const QCOLS = 'id,cert,topic,pd_code,difficulty,year,statement,options,correct_index,explanation,source,explanation_source,scenario_code,scenario_pos';
+const QCOLS = 'id,cert,topic,pd_code,difficulty,year,statement,options,correct_index,explanation,source,explanation_source,scenario_code,scenario_pos,source_code';
 const SCOLS = 'code,cert,kind,year,topic,pd_code,body,source';
 const someQ = (await q1(`select id from public.questions where source_code = 'T1-0'`))[0].id;
 

@@ -1,5 +1,6 @@
 import type { Answers, Cert, ExamConfig, GradeResult, Question, Scenario } from '../types';
 import { MACROS, macroOf } from '../data/matrix';
+import { explanationUsesLetters, splitJustifications } from './justify';
 
 /** Regras oficiais (Edital Anbima, rev. nov/2025): CPA 50q/70%, C-Pro R 45q/71%, C-Pro I 40q/70%, 2h30. */
 export const EXAMS: Record<Cert, ExamConfig> = {
@@ -82,10 +83,12 @@ export function optionsReferToEachOther(options: readonly string[]): boolean {
  * Apresentação da questão: as alternativas são embaralhadas SÓ na exibição; o banco continua intacto
  * (as questões da Anbima são imutáveis). Motivo: o portal da Anbima grava o gabarito sempre na
  * alternativa A — sem embaralhar, o aluno acertaria pelo padrão.
- * Exceção: alternativas que citam outras pela letra/posição mantêm a ordem original.
+ * Exceções (mantêm a ordem original): alternativas que citam outras pela letra/posição, e explicação
+ * que cita letras mas não dá para separar por alternativa (as letras dela ficariam trocadas).
  */
 export function present(q: Question, rng: () => number = Math.random): Question {
-  return optionsReferToEachOther(q.options) ? q : shuffleOptions(q, rng);
+  const lettered = explanationUsesLetters(q.explanation) && !splitJustifications(q.explanation, q.options.length);
+  return optionsReferToEachOther(q.options) || lettered ? q : shuffleOptions(q, rng);
 }
 
 export interface BuildOpts {

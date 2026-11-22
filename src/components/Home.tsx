@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import type { AttemptRecord, Cert } from '../types';
+import type { AttemptRecord, Cert, Feedback } from '../types';
 import { EXAMS, formatClock } from '../lib/exam';
 import { ConfirmDialog, Icon } from './ui';
+import { StartDialog } from './StartDialog';
 
 interface Props {
   history: AttemptRecord[];
-  onStart: (cert: Cert) => void;
+  onStart: (cert: Cert, feedback: Feedback) => void;
   onProgress: () => void;
   onPlan: () => void;
   onTrain: () => void;
@@ -23,6 +24,7 @@ const DETAILS: Record<Cert, string[]> = {
 
 export function Home({ history, onStart, onProgress, onPlan, onTrain, onClearHistory, errorCount, signedIn }: Props) {
   const [asking, setAsking] = useState(false);
+  const [starting, setStarting] = useState<Cert | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'warn'; text: string } | null>(null);
   const hasData = history.length > 0 || errorCount > 0;
@@ -52,7 +54,7 @@ export function Home({ history, onStart, onProgress, onPlan, onTrain, onClearHis
                 <li key={d}>{d}</li>
               ))}
             </ul>
-            <button className="btn btn-primary btn-block" onClick={() => onStart(cert)}>
+            <button className="btn btn-primary btn-block" onClick={() => setStarting(cert)}>
               Iniciar simulado {EXAMS[cert].label}
             </button>
           </article>
@@ -127,6 +129,18 @@ export function Home({ history, onStart, onProgress, onPlan, onTrain, onClearHis
           </ul>
         )}
       </section>
+
+      {starting && (
+        <StartDialog
+          cert={starting}
+          onCancel={() => setStarting(null)}
+          onStart={(f) => {
+            const c = starting;
+            setStarting(null);
+            onStart(c, f);
+          }}
+        />
+      )}
 
       {asking && (
         <ConfirmDialog title="Limpar histórico?" confirmLabel="Limpar histórico" busy={busy} onConfirm={clear} onCancel={() => setAsking(false)}>

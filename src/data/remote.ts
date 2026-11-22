@@ -18,6 +18,7 @@ export interface QuestionRow {
   explanation_source: 'anbima' | 'ia' | null;
   scenario_code: string | null;
   scenario_pos: number | null;
+  source_code?: string | null;
 }
 
 export interface ScenarioRow {
@@ -32,7 +33,7 @@ export interface ScenarioRow {
 }
 
 export const QUESTION_COLS =
-  'id,cert,topic,pd_code,difficulty,year,statement,options,correct_index,explanation,source,explanation_source,scenario_code,scenario_pos';
+  'id,cert,topic,pd_code,difficulty,year,statement,options,correct_index,explanation,source,explanation_source,scenario_code,scenario_pos,source_code';
 export const SCENARIO_COLS = 'code,cert,kind,year,topic,pd_code,body,source';
 
 /** Linha inválida (alternativas ≠ 4, gabarito fora de 0–3, ano < 2026) vira null e fica fora da prova. */
@@ -52,6 +53,7 @@ export function rowToQuestion(r: QuestionRow): Question | null {
     source: r.source,
   };
   if (r.pd_code) q.pdCode = r.pd_code;
+  if (r.source_code) q.sourceCode = r.source_code;
   if (r.explanation_source) q.explanationSource = r.explanation_source;
   if (r.scenario_code) {
     q.scenarioCode = r.scenario_code;
