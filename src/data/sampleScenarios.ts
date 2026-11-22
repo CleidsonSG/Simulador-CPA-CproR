@@ -82,7 +82,7 @@ export const SAMPLE_SCENARIOS: Scenario[] = [
     ),
   },
   {
-    code: 'EX-CPA-M2', cert: 'CPA', kind: 'mapa', year: 2026, source: 'exemplo', pdCode: '2.2.2',
+    code: 'EX-CPA-M2', cert: 'CPA', kind: 'mapa', year: 2026, source: 'exemplo', pdCode: '2.2.1',
     topic: 'Regimes de tributação (progressivo e regressivo)', title: 'Previdência para quem faz declaração simplificada',
     body: map(
       'Roberto, 45 anos, é assalariado e faz a declaração de IR no modelo simplificado. Quer começar uma previdência privada para a aposentadoria, daqui a 20 anos.',
@@ -108,12 +108,12 @@ export const SAMPLE_SCENARIOS: Scenario[] = [
           ],
         },
         {
-          client: 'Não pretendo mudar. E quanto ao regime de tributação, qual escolho para 20 anos?',
+          client: 'Não pretendo mudar. E o regime de tributação, preciso escolher agora?',
           options: [
-            'Para prazo longo, o regressivo costuma ser melhor: a alíquota cai até 10% após 10 anos.',
-            'O progressivo, porque a alíquota é sempre 10%.',
-            'Tanto faz, ambos têm a mesma alíquota.',
-            'Nenhum, previdência é isenta.',
+            'Não precisa: desde 2024 você pode escolher entre progressivo e regressivo até o primeiro resgate ou o início da renda.',
+            'Precisa, e depois da contratação não há como mudar a escolha.',
+            'Precisa, e o regressivo é obrigatório para planos com prazo acima de 10 anos.',
+            'Não precisa, porque o regime é definido pela seguradora conforme o prazo.',
           ],
         },
       ],
@@ -139,7 +139,7 @@ export const SAMPLE_SCENARIOS: Scenario[] = [
 
   // ───────────── C-Pro R ─────────────
   {
-    code: 'EX-CPR-M1', cert: 'CPRO_R', kind: 'mapa', year: 2026, source: 'exemplo', pdCode: '2.4',
+    code: 'EX-CPR-M1', cert: 'CPRO_R', kind: 'mapa', year: 2026, source: 'exemplo', pdCode: '1.6.2',
     topic: 'Análise do perfil do investidor', title: 'Concentração após a alta',
     body: map(
       'Paulo, 52 anos, tem perfil moderado e uma carteira de R$ 800 mil bem diversificada. Um fundo de ações da carteira subiu 30% no ano.',
@@ -233,8 +233,8 @@ export const SAMPLE_SCENARIOS: Scenario[] = [
     },
   },
   {
-    code: 'EX-CPR-C2', cert: 'CPRO_R', kind: 'caso', year: 2026, source: 'exemplo', pdCode: '4.8',
-    topic: 'Desvio padrão da carteira e o benefício da diversificação', title: 'Retorno e risco de dois fundos',
+    code: 'EX-CPR-C2', cert: 'CPRO_R', kind: 'caso', year: 2026, source: 'exemplo', pdCode: '4.9',
+    topic: 'Relação entre risco, retorno e dominância entre carteiras', title: 'Retorno e risco de dois fundos',
     body: {
       html: `<p>Uma cliente quer escolher entre dois fundos multimercado. Dados dos últimos 36 meses (ao ano):</p>
 <table>
@@ -250,19 +250,19 @@ export const SAMPLE_SCENARIOS: Scenario[] = [
 
   // ───────────── C-Pro I ─────────────
   {
-    code: 'EX-CPI-C1', cert: 'CPRO_I', kind: 'caso', year: 2026, source: 'exemplo', pdCode: '4.1',
-    topic: 'Risco, retorno e mercado', title: 'Sensibilidade de títulos à taxa de juros',
+    code: 'EX-CPI-C1', cert: 'CPRO_I', kind: 'caso', year: 2026, source: 'exemplo', pdCode: '4.9.2',
+    topic: 'Administração e gerenciamento de risco', title: 'Sensibilidade de títulos à taxa de juros',
     body: {
       html: `<p>Um gestor analisa três títulos prefixados para a carteira de um cliente:</p>
 <table>
 <thead><tr><th scope="col">Título</th><th scope="col">Cupom</th><th scope="col">Vencimento</th><th scope="col">Duration modificada</th></tr></thead>
 <tbody>
 <tr><td>Título 1</td><td>Sem cupom</td><td>2 anos</td><td>1,8</td></tr>
-<tr><td>Título 2</td><td>10% ao ano</td><td>5 anos</td><td>3,6</td></tr>
+<tr><td>Título 2</td><td>10% ao ano</td><td>5 anos</td><td>3,7</td></tr>
 <tr><td>Título 3</td><td>Sem cupom</td><td>8 anos</td><td>7,1</td></tr>
 </tbody>
 </table>
-<p>Use a aproximação: variação do preço ≈ − duration modificada × variação da taxa.</p>`,
+<p>As taxas dos títulos seguem a curva de juros (mais altas nos prazos longos). Use a aproximação: variação do preço ≈ − duration modificada × variação da taxa.</p>`,
     },
   },
   {
@@ -283,40 +283,40 @@ export const SAMPLE_SCENARIOS: Scenario[] = [
 
 export const SAMPLE_SCENARIO_QUESTIONS: Question[] = [
   // CPA
-  sq('ex-set-cpa-m1-1', 'CPA', 'EX-CPA-M1', 1, '3.4.2', 'Suitability e código de distribuição da Anbima', 'Baixa',
+sq('ex-set-cpa-m1-1', 'CPA', 'EX-CPA-M1', 1, '3.4.2', 'Suitability e código de distribuição da Anbima', 'Baixa',
     'No atendimento a Marta, qual deveria ser a primeira providência do gerente?',
-    ['Entender o objetivo do recurso e confirmar se o perfil dela continua atual', 'Executar a compra de ações imediatamente, pois a cliente pediu', 'Recusar qualquer conversa sobre renda variável', 'Garantir que as ações vão se recuperar no longo prazo'],
-    'O suitability exige conhecer objetivo, situação financeira e tolerância a risco antes de recomendar. Prometer recuperação é garantir rentabilidade, o que é vedado.'),
+    ['Entender o objetivo do recurso e o perfil atual da cliente', 'Executar a compra de ações, pois foi o pedido da cliente', 'Recusar a operação e encerrar o atendimento', 'Recomendar ações de empresas boas pagadoras de dividendos'],
+    'A) Correta. O suitability exige conhecer objetivo, situação financeira e tolerância a risco antes de recomendar (Resolução CVM 30). B) Incorreta. O pedido da cliente não dispensa a verificação de adequação ao perfil. C) Incorreta. Recusar sem orientar não atende a cliente; o caminho é entender o objetivo e orientar. D) Incorreta. Recomendar um tipo de ação antes de conhecer o objetivo e o perfil inverte a ordem do suitability.'),
   sq('ex-set-cpa-m1-2', 'CPA', 'EX-CPA-M1', 2, '2.1.1', 'Instrumentos de renda variável e renda fixa', 'Baixa',
     'Para a reserva de emergência de Marta, qual aplicação é mais adequada?',
-    ['Tesouro Selic ou CDB com liquidez diária', 'Ações de uma única empresa', 'Tesouro IPCA+ com vencimento em 20 anos', 'Fundo de ações com resgate em D+30'],
-    'Reserva de emergência pede liquidez e baixa oscilação de preço. Ações e títulos longos podem estar em queda justamente quando o dinheiro for necessário.'),
-  sq('ex-set-cpa-m2-1', 'CPA', 'EX-CPA-M2', 1, '2.2.2', 'Regimes de tributação (progressivo e regressivo)', 'Média',
-    'Considerando que Roberto declara no modelo simplificado, qual plano tende a ser mais adequado?',
-    ['VGBL, porque ele não aproveitaria a dedução das contribuições do PGBL', 'PGBL, porque abate até 12% da renda bruta em qualquer modelo de declaração', 'PGBL, porque é isento de IR no resgate', 'Nenhum, pois previdência é vedada a assalariados'],
-    'A dedução de até 12% da renda bruta tributável vale só para quem declara no modelo completo. No VGBL, o IR incide apenas sobre os rendimentos no resgate.'),
+    ['Tesouro Selic com liquidez diária', 'Ações de uma única empresa', 'Tesouro IPCA+ com vencimento em 20 anos', 'Fundo de ações com resgate em D+30'],
+    'A) Correta. Reserva de emergência pede liquidez e baixa oscilação de preço; o Tesouro Selic é pós-fixado e pode ser resgatado em dia útil. B) Incorreta. Ações oscilam e podem estar em queda justamente quando o dinheiro for necessário. C) Incorreta. Antes do vencimento, o IPCA+ longo sofre marcação a mercado e pode ser vendido com perda. D) Incorreta. Além de oscilar, o fundo de ações só paga o resgate 30 dias depois do pedido.'),
+sq('ex-set-cpa-m2-1', 'CPA', 'EX-CPA-M2', 1, '2.2.1', 'Regimes de tributação (progressivo e regressivo)', 'Média',
+    'Considerando que Roberto declara no modelo simplificado, o plano adequado ao caso dele é o:',
+    ['VGBL, porque ele não aproveitaria a dedução das contribuições do PGBL', 'PGBL, porque a dedução de 12% vale também no modelo simplificado', 'PGBL, porque o IR no resgate incide só sobre os rendimentos', 'PGBL, porque a dedução vale para quem tem renda acima da faixa de isenção'],
+    'A) Correta. A dedução de até 12% da renda bruta tributável vale só para quem declara no modelo completo (Lei 9.532/1997, art. 11); no VGBL, o IR incide apenas sobre os rendimentos. B) Incorreta. No modelo simplificado não há dedução das contribuições ao PGBL. C) Incorreta. No PGBL, o IR no resgate incide sobre o valor total; a base só com rendimentos é a do VGBL. D) Incorreta. Ter renda acima da faixa de isenção não basta; é preciso declarar no modelo completo.'),
   sq('ex-set-cpa-m2-2', 'CPA', 'EX-CPA-M2', 2, '2.2.2', 'Regimes de tributação (progressivo e regressivo)', 'Média',
-    'Para um horizonte de 20 anos, qual regime de tributação tende a ser mais vantajoso para Roberto?',
-    ['Regressivo, com alíquota de 10% para recursos acumulados há mais de 10 anos', 'Progressivo, com alíquota fixa de 10% no resgate', 'Regressivo, com alíquota de 35% após 10 anos', 'Progressivo, por ser isento após 20 anos'],
-    'No regime regressivo a alíquota começa em 35% e cai a cada 2 anos, chegando a 10% após 10 anos. No progressivo, há retenção de 15% no resgate e ajuste na declaração pela tabela do IR.'),
-  sq('ex-set-cpa-c1-1', 'CPA', 'EX-CPA-C1', 1, '2.2.2', 'Regimes de tributação (progressivo e regressivo)', 'Média',
+    'Sobre a escolha do regime de tributação do plano de Roberto, a orientação correta é que ele:',
+    ['Pode adiar a escolha entre progressivo e regressivo até o primeiro resgate ou o início da renda', 'Precisa escolher o regime na contratação, sem possibilidade de alteração depois', 'Deve optar pelo progressivo, que tem alíquota fixa de 10% no resgate', 'Deve optar pelo regressivo, obrigatório para planos com prazo acima de dez anos'],
+    'A) Correta. Desde a Lei 14.803/2024, a opção entre os regimes pode ser feita até o pedido do benefício ou o primeiro resgate; assim Roberto decide quando conhecer melhor sua renda futura. B) Incorreta. A escolha na contratação era a regra anterior; hoje ela pode ser adiada. C) Incorreta. No progressivo há retenção de 15% nos resgates e ajuste pela tabela do IR na declaração; não há alíquota fixa de 10%. D) Incorreta. O regressivo (35% caindo até 10% após 10 anos, Lei 11.053/2004) é uma opção, não uma obrigação.'),
+sq('ex-set-cpa-c1-1', 'CPA', 'EX-CPA-C1', 1, '2.1.1.1.11', 'Instrumentos de renda variável e renda fixa', 'Média',
     'Qual opção oferece a maior rentabilidade líquida anual aproximada para Ana?',
-    ['LCI, com 10,5% ao ano líquidos', 'CDB, com 12,0% ao ano líquidos', 'Tesouro Prefixado, com 11,5% ao ano líquidos', 'CDB, com 10,2% ao ano líquidos, que é a maior entre as três'],
-    'Acima de 720 dias a alíquota é 15%. CDB: 12,0% × 0,85 = 10,2%. Tesouro: 11,5% × 0,85 ≈ 9,8%. LCI é isenta para pessoa física: 10,5%, a maior.'),
-  sq('ex-set-cpa-c1-2', 'CPA', 'EX-CPA-C1', 2, '2.1.1', 'Instrumentos de renda variável e renda fixa', 'Média',
-    'Sobre a garantia do FGC nas opções apresentadas, é correto afirmar que:',
-    ['CDB e LCI têm cobertura do FGC; o Tesouro Prefixado não, pois o risco é do Tesouro Nacional', 'Só o Tesouro Prefixado tem cobertura do FGC', 'Nenhuma das três tem cobertura do FGC', 'As três têm cobertura ilimitada do FGC'],
-    'CDB e LCI são cobertos pelo FGC até R$ 250 mil por CPF e por instituição (com teto global). Títulos públicos não têm FGC: o risco é soberano.'),
+    ['LCI, com 10,5% ao ano líquidos', 'CDB, com 12,0% ao ano líquidos', 'CDB, com cerca de 10,8% ao ano líquidos', 'CDB, com cerca de 10,2% ao ano líquidos'],
+    'Acima de 720 dias, a alíquota é 15% (Lei 11.033/2004). A) Correta. A LCI é isenta para pessoa física: 10,5% ao ano, a maior das três. B) Incorreta. 12,0% é a taxa bruta do CDB, antes do IR. C) Incorreta. 10,8% aplica alíquota de 10%, que não existe na tabela da renda fixa. D) Incorreta. O CDB rende cerca de 10,2% líquidos (12,0% × 0,85), menos que a LCI; o Tesouro, perto de 9,8%.'),
+sq('ex-set-cpa-c1-2', 'CPA', 'EX-CPA-C1', 2, '2.1.1', 'Instrumentos de renda variável e renda fixa', 'Média',
+    'Ana pergunta quais das três opções contam com a garantia do FGC. A resposta adequada do gerente é:',
+    ['CDB e LCI, mas não o Tesouro, que tem risco soberano', 'Só o CDB, pois a LCI tem lastro imobiliário', 'CDB e LCI, se mantidos até o vencimento', 'As três, inclusive o Tesouro Prefixado'],
+    'A) Correta. CDB e LCI são cobertos pelo FGC até R$ 250 mil por CPF por instituição ou conglomerado, com teto de R$ 1 milhão a cada quatro anos; título público tem risco soberano e não conta com o FGC. B) Incorreta. O lastro imobiliário não retira a LCI da cobertura do FGC. C) Incorreta. A garantia não depende de manter o título até o vencimento. D) Incorreta. Títulos públicos não são cobertos pelo FGC.'),
 
   // C-Pro R
-  sq('ex-set-cpr-m1-1', 'CPRO_R', 'EX-CPR-M1', 1, '2.4', 'Análise do perfil do investidor', 'Média',
+sq('ex-set-cpr-m1-1', 'CPRO_R', 'EX-CPR-M1', 1, '1.6.2', 'Regras para o relacionamento e distribuição de produtos', 'Média',
     'Se Paulo insistir em uma aplicação inadequada ao seu perfil, o que a regulação de suitability permite?',
-    ['Executar a ordem após alertar o cliente sobre a inadequação e obter sua declaração expressa de ciência', 'Executar a ordem sem nenhum registro, pois a iniciativa foi do cliente', 'Recusar a ordem em qualquer hipótese', 'Alterar o perfil para agressivo sem novo questionário'],
-    'Pela norma da CVM sobre suitability, o cliente pode aplicar fora do perfil desde que seja alertado da inadequação e declare expressamente que está ciente.'),
-  sq('ex-set-cpr-m1-2', 'CPRO_R', 'EX-CPR-M1', 2, '4.8', 'Desvio padrão da carteira e o benefício da diversificação', 'Média',
-    'Concentrar 80% da carteira em um único fundo de ações aumenta principalmente:',
-    ['A exposição a riscos que a diversificação reduziria', 'A liquidez da carteira', 'A garantia de retorno, pelo histórico recente', 'A proteção contra a queda da bolsa'],
-    'A diversificação reduz o risco não sistemático. Concentrar elimina esse benefício; retorno passado não garante retorno futuro.'),
+    ['Executar após alertar sobre a inadequação e obter a ciência expressa', 'Executar sem registro, pois a iniciativa foi do cliente', 'Recusar a ordem até um novo questionário de perfil', 'Alterar o perfil para agressivo sem novo questionário'],
+    'A) Correta. Pela Resolução CVM 30, o cliente pode aplicar fora do perfil se for alertado da inadequação e declarar expressamente que está ciente. B) Incorreta. A iniciativa do cliente não dispensa o alerta e o registro da ciência. C) Incorreta. A norma não exige novo questionário para executar a ordem; exige o alerta e a declaração. D) Incorreta. Alterar o perfil sem nova análise desvirtua o suitability.'),
+sq('ex-set-cpr-m1-2', 'CPRO_R', 'EX-CPR-M1', 2, '4.8', 'Desvio padrão da carteira e o benefício da diversificação', 'Média',
+    'Ao concentrar 80% da carteira em um único fundo de ações, Paulo amplia a exposição da carteira ao:',
+    ['Risco de mercado de ações', 'Risco de crédito dos emissores', 'Risco de taxa de juros', 'Risco cambial da carteira'],
+    'A) Correta. Um fundo de ações já é diversificado entre papéis; concentrar 80% nele aumenta a exposição à classe de ações (risco de mercado) e a volatilidade da carteira. B) Incorreta. Fundos de ações têm pouca exposição a risco de crédito. C) Incorreta. Reduzir a renda fixa diminui, e não amplia, a exposição a juros dos títulos. D) Incorreta. O caso não indica exposição a moeda estrangeira.'),
   sq('ex-set-cpr-m2-1', 'CPRO_R', 'EX-CPR-M2', 1, '4.2', 'Planejamento de investimentos para eventos ou novos objetivos', 'Média',
     'Qual é o principal risco de aplicar a entrada do imóvel no Tesouro IPCA+ 2045?',
     ['Perda por marcação a mercado se os juros subirem antes da data do resgate', 'Falta de remuneração pela inflação', 'Ausência de liquidez, pois o título não pode ser vendido antes de 2045', 'Risco de crédito maior que o de um banco médio'],
@@ -333,30 +333,30 @@ export const SAMPLE_SCENARIO_QUESTIONS: Question[] = [
     'Sobre a venda de ações no rebalanceamento, é correto afirmar:',
     ['Há IR de 15% sobre o ganho, porque as vendas no mês superam R$ 20.000', 'É isenta, pois o rebalanceamento não é tributado', 'Há IR de 20% sobre o valor total vendido', 'É isenta, porque o lucro é menor que R$ 20.000'],
     'Para pessoa física, a isenção em operações comuns vale quando o total de VENDAS de ações no mês não passa de R$ 20.000. Com R$ 50.000 vendidos, o ganho é tributado a 15%.'),
-  sq('ex-set-cpr-c2-1', 'CPRO_R', 'EX-CPR-C2', 1, '4.8', 'Desvio padrão da carteira e o benefício da diversificação', 'Média',
+sq('ex-set-cpr-c2-1', 'CPRO_R', 'EX-CPR-C2', 1, '4.9.5', 'Relação entre risco, retorno e dominância entre carteiras', 'Média',
     'Pelo índice de Sharpe, qual fundo teve o melhor retorno ajustado ao risco?',
-    ['Alfa, com Sharpe de 0,50', 'Beta, com Sharpe de 0,42', 'Beta, por ter o maior retorno médio', 'Os dois empatam, pois ambos superaram o CDI'],
-    'Sharpe = (retorno − livre de risco) ÷ desvio-padrão. Alfa: (14 − 10) ÷ 8 = 0,50. Beta: (15 − 10) ÷ 12 ≈ 0,42.'),
+    ['Alfa, com Sharpe de 0,50', 'Beta, com Sharpe de 0,42', 'Alfa, com Sharpe de 1,75', 'Beta, porque o retorno acima do CDI é maior'],
+    'Sharpe = (retorno − taxa livre de risco) ÷ desvio-padrão. A) Correta. Alfa: (14 − 10) ÷ 8 = 0,50, maior que o de Beta. B) Incorreta. O cálculo de Beta está certo (≈ 0,42), mas é menor que o de Alfa. C) Incorreta. 1,75 é 14 ÷ 8: divide o retorno total, sem descontar o CDI. D) Incorreta. Olhar só o excesso de retorno (5 contra 4 pontos) ignora o risco, que é o que o Sharpe ajusta.'),
   sq('ex-set-cpr-c2-2', 'CPRO_R', 'EX-CPR-C2', 2, '4.8', 'Desvio padrão da carteira e o benefício da diversificação', 'Baixa',
     'O desvio-padrão da tabela representa:',
-    ['A volatilidade dos retornos em torno da média', 'O retorno mínimo garantido do fundo', 'A taxa de administração cobrada', 'O retorno acima do CDI'],
-    'O desvio-padrão mede quanto os retornos variam em torno da média: quanto maior, maior a volatilidade.'),
+    ['A volatilidade dos retornos em torno da média', 'A perda máxima esperada do fundo em um ano', 'O retorno médio obtido acima do CDI', 'A correlação dos retornos do fundo com o CDI'],
+    'A) Correta. O desvio-padrão mede quanto os retornos variam em torno da média: quanto maior, maior a volatilidade. B) Incorreta. A perda máxima esperada com dada confiança é o VaR, outra medida. C) Incorreta. O retorno acima do CDI é o excesso de retorno, numerador do Sharpe. D) Incorreta. A correlação mede como dois retornos se movem juntos, não a dispersão de um deles.'),
 
   // C-Pro I
-  sq('ex-set-cpi-c1-1', 'CPRO_I', 'EX-CPI-C1', 1, '4.1', 'Risco, retorno e mercado', 'Média',
+sq('ex-set-cpi-c1-1', 'CPRO_I', 'EX-CPI-C1', 1, '4.9.2', 'Administração e gerenciamento de risco', 'Média',
     'Se as taxas de juros subirem 1 ponto percentual, qual a variação aproximada do preço do Título 2?',
-    ['Queda de cerca de 3,6%', 'Alta de cerca de 3,6%', 'Queda de cerca de 10%', 'Nenhuma, pois o título paga cupom'],
-    'Variação ≈ −3,6 × 1% = −3,6%. Juros e preço de título prefixado andam em sentidos opostos.'),
-  sq('ex-set-cpi-c1-2', 'CPRO_I', 'EX-CPI-C1', 2, '4.1', 'Risco, retorno e mercado', 'Baixa',
+    ['Queda de cerca de 3,7%', 'Alta de cerca de 3,7%', 'Queda de cerca de 10%', 'Queda de cerca de 5%'],
+    'A) Correta. Variação ≈ −3,7 × 1% = −3,7%: juros e preço de título prefixado andam em sentidos opostos. B) Incorreta. O sinal está trocado: a alta dos juros derruba o preço. C) Incorreta. 10% é o cupom do título, não a sua sensibilidade à taxa. D) Incorreta. 5% usa o prazo até o vencimento; com cupons, a duration é menor que o prazo.'),
+sq('ex-set-cpi-c1-2', 'CPRO_I', 'EX-CPI-C1', 2, '4.9.2', 'Administração e gerenciamento de risco', 'Baixa',
     'Qual título é o mais sensível a variações na taxa de juros?',
-    ['Título 3, por ter a maior duration', 'Título 1, por não pagar cupom', 'Título 2, por pagar cupom de 10%', 'Todos têm a mesma sensibilidade'],
-    'Quanto maior a duration, maior a sensibilidade do preço à taxa. O Título 3 é longo e sem cupom, com duration modificada de 7,1.'),
+    ['Título 3, por ter a maior duration', 'Título 1, por não pagar cupom', 'Título 2, por pagar o maior cupom', 'Título 1, por ter o menor prazo até o vencimento'],
+    'A) Correta. Quanto maior a duration, maior a sensibilidade do preço à taxa; o Título 3, longo e sem cupom, tem duration modificada de 7,1. B) Incorreta. Não pagar cupom aumenta a duration, mas o Título 1 é curto (1,8). C) Incorreta. Cupom maior reduz a duration, e não aumenta a sensibilidade. D) Incorreta. Prazo curto torna o título menos sensível, não mais.'),
   sq('ex-set-cpi-c2-1', 'CPRO_I', 'EX-CPI-C2', 1, '3.4', 'PGBL', 'Média',
     'Qual o valor máximo das contribuições ao PGBL que Fernanda pode deduzir da base do IR no ano?',
     ['R$ 24.000', 'R$ 30.000', 'R$ 20.000', 'R$ 12.000'],
     'A dedução é limitada a 12% da renda bruta tributável: 12% × R$ 200.000 = R$ 24.000. Os R$ 6.000 restantes não reduzem a base neste ano.'),
-  sq('ex-set-cpi-c2-2', 'CPRO_I', 'EX-CPI-C2', 2, '1.5', 'Tributação', 'Média',
+sq('ex-set-cpi-c2-2', 'CPRO_I', 'EX-CPI-C2', 2, '3.4.3', 'PGBL', 'Média',
     'No resgate do PGBL, sobre qual base incide o IR?',
-    ['Sobre o valor total resgatado (contribuições e rendimentos)', 'Apenas sobre os rendimentos', 'Apenas sobre as contribuições que não foram deduzidas', 'Não há IR no resgate do PGBL'],
-    'Como as contribuições do PGBL foram deduzidas na declaração, o IR no resgate incide sobre o valor total. No VGBL, incide só sobre os rendimentos.'),
+    ['Sobre o valor total resgatado', 'Apenas sobre os rendimentos', 'Sobre o total, menos as contribuições não deduzidas', 'Sobre o total, descontada a taxa de carregamento'],
+    'A) Correta. No PGBL, o IR do resgate incide sobre o valor total resgatado (Lei 9.250/1995, art. 33), inclusive sobre a parte das contribuições que passou do limite de 12% e não foi deduzida; por isso não convém contribuir ao PGBL acima do limite: o excedente fica melhor num VGBL. B) Incorreta. A base só com os rendimentos é a regra do VGBL. C) Incorreta. A lei não exclui da base as contribuições que não foram deduzidas. D) Incorreta. A taxa de carregamento não altera a base de cálculo do resgate.'),
 ];

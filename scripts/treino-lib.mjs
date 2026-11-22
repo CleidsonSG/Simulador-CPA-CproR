@@ -58,6 +58,13 @@ export function validarQuestao(q) {
   if (opts.length === 4 && Math.max(...tamanhos) > 2.2 * Math.max(1, Math.min(...tamanhos))) {
     avisos.push('tamanhos das alternativas muito diferentes (a mais longa pode denunciar o gabarito)');
   }
+  if (!['lembrar', 'compreender', 'aplicar', 'analisar'].includes(q.dominio)) avisos.push('dominio ausente ou inválido (lembrar|compreender|aplicar|analisar)');
+  const errados = ['A', 'B', 'C', 'D'].filter((_, i) => i !== q.correct_index);
+  if (!q.distratores || errados.some((l) => !String(q.distratores[l] ?? '').trim())) {
+    avisos.push('distratores sem o erro que cada alternativa errada simula (campo distratores)');
+  } else if (new Set(errados.map((l) => norm(q.distratores[l]))).size < errados.length) {
+    avisos.push('dois distratores simulam o mesmo erro');
+  }
   // Só entra no SQL o que o revisor independente aprovou.
   if (q.revisao?.veredito !== 'aprovada') erros.push('sem aprovação do revisor independente (revisao.veredito = "aprovada")');
   return { erros, avisos };
@@ -74,7 +81,15 @@ export function validarLote(lote) {
   });
   const dist = [0, 0, 0, 0];
   lote.forEach((q) => Number.isInteger(q.correct_index) && dist[q.correct_index]++);
-  return { itens, dist, ok: itens.every((x) => x.erros.length === 0) };
+  // Lote: pelo menos 60% em aplicar/analisar e no máximo 15% de lembrar.
+  const avisosLote = [];
+  const n = lote.length;
+  const altos = lote.filter((q) => q.dominio === 'aplicar' || q.dominio === 'analisar').length;
+  const lembrar = lote.filter((q) => q.dominio === 'lembrar').length;
+  if (n >= 3 && altos / n < 0.6) avisosLote.push(`só ${altos} de ${n} questões em aplicar/analisar (meta: 60%)`);
+  if (n >= 3 && lembrar / n > 0.15) avisosLote.push(`${lembrar} de ${n} questões só de memorização (máx. 15%)`);
+  if (n >= 8 && Math.max(...dist) > n / 2) avisosLote.push('gabarito concentrado numa posição');
+  return { itens, dist, avisosLote, ok: itens.every((x) => x.erros.length === 0) };
 }
 
 /** Texto SQL seguro com dollar-quoting (o conteúdo não pode conter a tag). */

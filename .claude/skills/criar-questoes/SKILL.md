@@ -33,14 +33,19 @@ description: Cria questões ORIGINAIS de treino (CPA, C-Pro R, C-Pro I — progr
   por um detalhe-armadilha. Bons distratores representam erros reais de quem não domina o tema.
 - **Proibido:** "sempre", "nunca", "todos/todas", "completamente", "totalmente"; enunciado negativo
   ("exceto", "incorreta", "não"); "todas/nenhuma das anteriores"; alternativa que cita outra.
-- **Domínio cognitivo** declarado (lembrar, compreender, aplicar, analisar). Prefira aplicar/analisar.
+- **Domínio cognitivo** declarado (`lembrar`, `compreender`, `aplicar`, `analisar`). No lote, **pelo menos 60%**
+  em `aplicar`/`analisar`; `lembrar` no máximo 15%.
+- **Cada distrator simula um erro diferente** (campo `distratores`: o equívoco que cada alternativa errada
+  representa). Dois distratores com o mesmo erro = um deles sobra.
 - **Explicação por alternativa, na ordem do banco:** `A) Correta. … B) Incorreta. … C) Incorreta. … D) Incorreta. …`
   (o app mostra cada justificativa dentro da sua alternativa, mesmo embaralhada), citando a norma/fonte.
 - Varie a posição do gabarito no lote (o validador mostra a distribuição A/B/C/D).
 
 ## Fluxo (rode na sessão principal — subagentes não chamam outros subagentes)
-1. **Escopo.** Certificação, macrotema/tema (`pd_code` do PD 2026) e quantidade. Sem pedido
-   específico, priorize os temas com menos questões de treino ou mais erros dos alunos.
+1. **Escopo e plano.** Certificação, macrotema/tema (`pd_code` do PD 2026) e quantidade. Sem pedido
+   específico, priorize os temas com menos questões de treino ou mais erros dos alunos. Antes de escrever,
+   monte o plano do lote: para cada questão, `pd_code`, o que o profissional deve saber fazer e o domínio
+   cognitivo — respeitando os pesos por macrotema e a meta de 60% em aplicar/analisar.
 2. **Briefing do especialista.** Chame o agente `especialista-cpa`, `especialista-cpro-r` ou
    `especialista-cpro-i` com o `pd_code`: ele devolve os pontos cobráveis do item, as regras e números
    vigentes com fontes primárias e os erros comuns (matéria-prima dos distratores).
@@ -48,7 +53,8 @@ description: Cria questões ORIGINAIS de treino (CPA, C-Pro R, C-Pro I — progr
    (`knowledge-private/questoes-treino/lote-AAAA-MM-DD-<cert>.json`) sem o campo `revisao`.
 4. **Revisão independente.** Chame `revisor-questoes` com o arquivo. Ele resolve cada questão SEM
    olhar o gabarito, confere fontes e regras, e preenche `revisao` (`aprovada` | `reprovada` + motivos).
-   Reprovadas voltam ao criador UMA vez; se reprovarem de novo, saem do lote.
+   Reprovadas voltam ao criador com o motivo exato (ex.: "C pode ser defendida", "B é bem mais longa"),
+   no máximo DOIS ciclos; se ainda reprovarem, saem do lote.
 5. **Validação.** `node scripts/validar-questoes-treino.mjs <lote.json> <lote.sql>`. Só gera SQL se
    não houver erro. Avisos: corrigir quando fizer sentido.
 6. **Entrega.** Informe ao dono: quantas aprovadas/reprovadas, temas, distribuição do gabarito,
@@ -60,6 +66,7 @@ description: Cria questões ORIGINAIS de treino (CPA, C-Pro R, C-Pro I — progr
 [{
   "cert": "CPA", "pd_code": "3.1.3.4", "topic": "Finanças pessoais", "difficulty": "Média",
   "dominio": "aplicar",
+  "distratores": { "B": "confunde liquidez com rentabilidade", "C": "ignora a marcação a mercado", "D": "esquece o prazo de resgate" },
   "statement": "Contexto profissional… Comando no fim:",
   "options": ["…", "…", "…", "…"], "correct_index": 0,
   "explanation": "A) Correta. … B) Incorreta. … C) Incorreta. … D) Incorreta. …",

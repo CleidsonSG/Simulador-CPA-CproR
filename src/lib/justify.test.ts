@@ -46,3 +46,21 @@ describe('justificativa por alternativa', () => {
     for (let i = 0; i < 10; i++) expect(present(odd).options).toEqual(qx.options);
   });
 });
+
+import { SAMPLE_QUESTIONS } from '../data/sampleQuestions';
+import { SAMPLE_SCENARIO_QUESTIONS } from '../data/sampleScenarios';
+
+describe('questões de exemplo: justificativa por alternativa', () => {
+  it('toda explicação que cita letras é separada certo por alternativa (e a CPA toda tem)', () => {
+    for (const q of [...SAMPLE_QUESTIONS, ...SAMPLE_SCENARIO_QUESTIONS]) {
+      if (!explanationUsesLetters(q.explanation)) continue;
+      const j = splitJustifications(q.explanation, q.options.length);
+      expect(j, q.id).not.toBeNull();
+      expect(j!.parts[q.correctIndex], q.id).toMatch(/^Correta/);
+      j!.parts.forEach((p, i) => i !== q.correctIndex && expect(p, `${q.id} ${'ABCD'[i]}`).toMatch(/^Incorreta/));
+    }
+    const cpa = SAMPLE_QUESTIONS.filter((q) => q.cert === 'CPA');
+    expect(cpa).toHaveLength(10);
+    for (const q of cpa) expect(splitJustifications(q.explanation, 4), q.id).not.toBeNull();
+  });
+});

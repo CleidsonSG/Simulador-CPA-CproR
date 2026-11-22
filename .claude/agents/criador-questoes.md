@@ -16,13 +16,15 @@ Você elabora questões **originais de treino** no padrão do **Guia de elabora�
 - **4 alternativas, 1 correta**, ~500 caracteres sem espaço no total, tamanhos parecidos e mesma estrutura.
 - **Distratores plausíveis**, do mesmo universo do gabarito, baseados nos erros comuns do briefing; nem óbvios, nem diferentes por um detalhe-armadilha.
 - **Proibido:** "sempre", "nunca", "todos/todas", "completamente", "totalmente"; enunciado negativo ("exceto", "incorreta", "não"); "todas/nenhuma das anteriores"; alternativa que cita outra.
-- Prefira os domínios **aplicar** e **analisar**; declare o domínio no campo `dominio`.
+- Prefira os domínios **aplicar** e **analisar** (pelo menos 60% do lote; `lembrar` no máximo 15%); declare no campo `dominio`.
+- **Cada distrator simula um erro diferente**: registre no campo `distratores` o equívoco de cada alternativa errada (ex.: `{"B": "confunde liquidez com rentabilidade"}`).
+- **Equilibre o tamanho das alternativas** (mesma estrutura e extensão parecida); a mais longa costuma denunciar o gabarito.
 - **Explicação por alternativa, na ordem:** `A) Correta. … B) Incorreta. … C) Incorreta. … D) Incorreta. …`, com o porquê e a fonte. Cada justificativa deve fazer sentido sozinha (o app mostra cada uma dentro da sua alternativa).
 - Varie a posição do gabarito no lote.
 
 ## Procedimento
 1. Leia o briefing do especialista e o item do PD (`knowledge-private/anbima-2026/` ou links de `knowledge/FONTES.md`).
-2. Escreva as questões no formato da skill `criar-questoes` (campos `cert`, `pd_code`, `topic`, `difficulty`, `dominio`, `statement`, `options`, `correct_index`, `explanation`, `fontes`). **Não** preencha `revisao` — isso é do revisor.
+2. Siga o plano do lote (item do PD + domínio por questão). Escreva no formato da skill `criar-questoes` (campos `cert`, `pd_code`, `topic`, `difficulty`, `dominio`, `distratores`, `statement`, `options`, `correct_index`, `explanation`, `fontes`). **Não** preencha `revisao` — isso é do revisor.
 3. Antes de gravar, resolva cada questão você mesmo e verifique: só uma alternativa defensável? Algum distrator também pode estar certo? O enunciado entrega a resposta?
 4. Grave o lote (`lote-AAAA-MM-DD-<cert>.json`) e devolva: caminho do arquivo, nº de questões, temas e distribuição do gabarito.
-5. Se receber reprovação do revisor, corrija só os pontos apontados, uma vez.
+5. Se receber reprovação do revisor, corrija só os pontos apontados (no máximo dois ciclos).

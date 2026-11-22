@@ -17,11 +17,13 @@ Você é o **revisor independente**. Não escreveu as questões e não deve conf
    - **Exatidão:** cada número, alíquota, prazo e regra está certo e vigente? Fonte primária citada e real?
    - **Uma única correta:** nenhum distrator pode ser defendido como certo; o gabarito não depende de interpretação.
    - **PD 2026:** o `pd_code` existe e o conteúdo é do nível da certificação.
-   - **Guia:** contexto profissional, comando no fim, sem termos absolutos, sem enunciado negativo, sem "todas/nenhuma das anteriores", alternativas de tamanho parecido, distratores plausíveis.
+   - **Guia:** contexto profissional, comando no fim, sem termos absolutos, sem enunciado negativo, sem "todas/nenhuma das anteriores", alternativas de tamanho e estrutura parecidos, distratores plausíveis.
+   - **Distratores distintos:** cada um simula um erro diferente (confira o campo `distratores`); dois com o mesmo erro, ou um absurdo, reprova.
+   - **Domínio:** o `dominio` declarado bate com o que a questão exige? No lote, ≥60% em aplicar/analisar.
    - **Explicação:** `A) … B) … C) … D) …` na ordem, cada justificativa correta e independente.
    - **Originalidade:** não reproduz nem parafraseia questão oficial conhecida da Anbima.
    - **Linguagem:** clara, sem ambiguidade, sem preconceito; português correto.
-4. Preencha `revisao`: `{ "veredito": "aprovada" | "reprovada", "revisor": "revisor-questoes", "resposta_do_revisor": <0-3>, "notas": "motivos objetivos e o que corrigir", "fontes_conferidas": [...] }`.
+4. Preencha `revisao`: `{ "veredito": "aprovada" | "reprovada", "revisor": "revisor-questoes", "resposta_do_revisor": <0-3>, "notas": "motivos objetivos e o que corrigir, apontando a alternativa (ex.: 'C pode ser defendida porque…')", "fontes_conferidas": [...] }`.
    Na dúvida, **reprove** — melhor perder uma questão do que ensinar errado.
 
 ## Saída

@@ -18,12 +18,15 @@ const boa = {
   correct_index: 0,
   explanation:
     'A) Correta. A reserva precisa de liquidez e baixa oscilação. B) Incorreta. Ações oscilam. C) Incorreta. Prefixado longo sofre marcação a mercado. D) Incorreta. O prazo de resgate impede o uso imediato.',
+  dominio: 'aplicar',
+  distratores: { B: 'ignora a oscilação das ações', C: 'ignora a marcação a mercado', D: 'esquece o prazo de resgate' },
   revisao: { veredito: 'aprovada', revisor: 'revisor-questoes' },
 };
 
 describe('validação das questões de treino (IA)', () => {
   it('aceita uma questão no padrão do Guia', () => {
     expect(validarQuestao(boa).erros).toEqual([]);
+    expect(validarQuestao(boa).avisos).toEqual([]);
   });
 
   it('recusa sem aprovação do revisor independente', () => {
@@ -63,5 +66,11 @@ describe('validação das questões de treino (IA)', () => {
     expect(sql).toMatch(/insert_generated_question/);
     expect(sql).not.toMatch(/insert into public\.questions/i);
     expect(sql).toMatch(/\$qq\$Texto com \$q\$/); // dollar-quoting escapa a própria tag
+  });
+
+  it('avisa distratores repetidos e lote só de memorização', () => {
+    expect(validarQuestao({ ...boa, distratores: { B: 'x', C: 'x', D: 'y' } }).avisos.join()).toMatch(/mesmo erro/);
+    const lembrar = [0, 1, 2].map((i) => ({ ...boa, statement: boa.statement + i, dominio: 'lembrar' }));
+    expect(validarLote(lembrar).avisosLote.join()).toMatch(/aplicar.analisar/);
   });
 });

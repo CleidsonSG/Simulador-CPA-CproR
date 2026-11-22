@@ -15,7 +15,7 @@ if (!Array.isArray(lote) || lote.length === 0) {
   console.error('O arquivo deve conter uma lista (array) de questões.');
   process.exit(2);
 }
-const { itens, dist, ok } = validarLote(lote);
+const { itens, dist, avisosLote, ok } = validarLote(lote);
 for (const { i, erros, avisos } of itens) {
   const status = erros.length ? '✗' : avisos.length ? '!' : '✓';
   console.log(`${status} ${i + 1}. ${String(lote[i].statement ?? '').slice(0, 70)}…`);
@@ -23,6 +23,7 @@ for (const { i, erros, avisos } of itens) {
   for (const a of avisos) console.log(`    aviso: ${a}`);
 }
 console.log(`\nGabarito por posição (A/B/C/D): ${dist.join(' / ')}`);
+for (const a of avisosLote) console.log(`aviso do lote: ${a}`);
 if (!ok) {
   console.log('\nLote com erros: nada foi gerado. Corrija e rode de novo.');
   process.exit(1);
