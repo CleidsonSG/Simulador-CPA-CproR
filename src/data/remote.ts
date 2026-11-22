@@ -105,6 +105,7 @@ export async function fetchBank(sb: SupabaseClient, cert: Cert): Promise<{ quest
       .select(QUESTION_COLS)
       .eq('cert', cert)
       .eq('status', 'publicada')
+      .neq('source', 'ia') // questão de IA nunca no banco oficial do app (migração 0009)
       .gte('year', 2026)
       .order('id')
       .range(from, from + PAGE - 1);

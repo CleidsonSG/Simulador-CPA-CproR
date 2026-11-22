@@ -80,3 +80,22 @@ describe('degustação', () => {
     }
   });
 });
+
+describe('regra: questão de IA nunca entra no simulado', () => {
+  it('buildExam, conjuntos e degustação ignoram source="ia", mesmo misturadas ao banco', () => {
+    const b = sampleBank('CPA');
+    // cópia "de IA" de todas as questões e cenários: se algo vazar, aparece no sorteio
+    const ia = b.questions.map((q) => ({ ...q, id: `ia-${q.id}`, source: 'ia' as const, scenarioCode: q.scenarioCode && `IA-${q.scenarioCode}` }));
+    const iaScen = b.scenarios.map((s) => ({ ...s, code: `IA-${s.code}`, source: 'ia' as const }));
+    const bank = [...b.questions, ...ia];
+    const scenarios = [...b.scenarios, ...iaScen];
+    for (let i = 0; i < 30; i++) {
+      const exam = buildExam(EXAMS.CPA, bank, { scenarios });
+      expect(exam.length).toBeGreaterThan(0);
+      expect(exam.some((q) => q.source === 'ia' || q.id.startsWith('ia-'))).toBe(false);
+      expect(buildTrial(bank, scenarios).some((q) => q.source === 'ia')).toBe(false);
+    }
+    // só IA no banco: o simulado fica vazio em vez de usar IA
+    expect(buildExam(EXAMS.CPA, ia, { scenarios: iaScen })).toEqual([]);
+  });
+});

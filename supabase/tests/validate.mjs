@@ -229,21 +229,36 @@ ok((await q1(`select count(*)::int n from public.questions where id = $1`, [targ
 await asOwner();
 ok((await q1(`select count(*)::int n from public.verify_integrity()`))[0].n === 0, 'após restaurar, o conteúdo continua idêntico (hash confere)');
 
-console.log('\n4. Agente criador de questões');
+console.log('\n4. Questões de IA: separadas das oficiais (nunca no simulado)');
 await as(ADMIN);
 const good = ['Opção A', 'Opção B', 'Opção C', 'Opção D'];
 const id1 = (await q1(`select public.insert_generated_question('CPA','2.1.1','Renda fixa','Média','Enunciado criado pelo agente?', $1::jsonb, 2, 'Explicação.', 'agente', true) id`, [JSON.stringify(good)]))[0].id;
 ok(!!id1, 'insere questão gerada (4 alternativas, 1 correta)');
-const row = (await q1(`select source, status, explanation_source from public.questions where id = $1`, [id1]))[0];
-ok(row.source === 'ia' && row.status === 'publicada', 'marcada como source=ia e publicada após verificação');
+ok((await q1(`select count(*)::int n from public.questions where id = $1`, [id1]))[0].n === 0, 'questão de IA NÃO vai para a tabela oficial');
+const row = (await q1(`select status, reviewed_by from public.training_questions where id = $1`, [id1]))[0];
+ok(row.status === 'revisao' && row.reviewed_by === 'revisor-independente', 'vai para a tabela de treino, em revisão, mesmo verificada');
 const id2 = (await q1(`select public.insert_generated_question('CPA','2.1.1','Renda fixa','Média','Outro enunciado sem verificação?', $1::jsonb, 0, 'Explicação.', 'agente', false) id`, [JSON.stringify(good)]))[0].id;
-ok((await q1(`select status from public.questions where id = $1`, [id2]))[0].status === 'revisao', 'sem verificação independente → fica em revisão');
-await rejects(() => db.query(`select public.insert_generated_question('CPA','2.1.1','x','Média','Enunciado criado pelo agente?', $1::jsonb, 2, 'e', 'agente', true)`, [JSON.stringify(good)]), 'recusa enunciado duplicado');
+await rejects(() => db.query(`select public.insert_generated_question('CPA','2.1.1','x','Média','Enunciado criado pelo agente?', $1::jsonb, 2, 'e', 'agente', true)`, [JSON.stringify(good)]), 'recusa enunciado duplicado no treino');
+await rejects(() => db.query(`select public.insert_generated_question('CPA','2.1.1','x','Média','Enunciado 1-0 ao pé da letra', $1::jsonb, 2, 'e', 'agente', true)`, [JSON.stringify(good)]), 'recusa enunciado igual ao de uma questão oficial');
 await rejects(() => db.query(`select public.insert_generated_question('CPA','2.1.1','x','Média','Novo?', '["a","a","b","c"]'::jsonb, 2, 'e', 'agente', true)`), 'recusa alternativas repetidas');
 await rejects(() => db.query(`select public.insert_generated_question('CPA','2.1.1','x','Média','Novo 2?', '["a","b","c"]'::jsonb, 2, 'e', 'agente', true)`), 'recusa menos de 4 alternativas');
 await as(U(1));
-ok((await q1(`select count(*)::int n from public.questions where id = $1`, [id2]))[0].n === 0, 'aluno não vê questão em revisão');
+ok((await q1(`select count(*)::int n from public.training_questions`))[0].n === 0, 'aluno não vê questão de treino em revisão');
 await rejects(() => db.query(`select public.insert_generated_question('CPA','2.1.1','x','Média','Novo 3?', $1::jsonb, 1, 'e', 'agente', true)`, [JSON.stringify(good)]), 'aluno não cria questão');
+await rejects(() => db.query(`select public.publish_training_question($1, true)`, [id1]), 'aluno não publica questão de treino');
+await as(ADMIN);
+await allows(() => db.query(`select public.publish_training_question($1, true, 'conferida')`, [id1]), 'admin publica a questão de treino');
+await allows(() => db.query(`select public.publish_training_question($1, false, 'gabarito duvidoso')`, [id2]), 'admin rejeita a outra');
+await as(U(1));
+ok((await q1(`select count(*)::int n from public.training_questions`))[0].n === 1, 'aluno aprovado vê só a de treino publicada');
+await rejects(() => db.query(`update public.training_questions set correct_index = 0`).then((r) => { if (!r.affectedRows) throw new Error('nenhuma linha alterada'); }), 'aluno não altera questão de treino', { grant: true });
+await asOwner();
+await rejects(() => db.query(`insert into public.questions (cert, topic, difficulty, year, statement, options, correct_index, source, status)
+  values ('CPA','x','Média',2026,'IA na tabela oficial?','["a","b","c","d"]',0,'ia','publicada')`), 'tabela oficial recusa questão de IA ativa (constraint)');
+await as(U(1));
+const picked = await q1(`select g.question_id from public.generate_exam('CPA', 200) g`);
+const ofIa = (await q1(`select count(*)::int n from public.training_questions t where t.id = any($1::uuid[])`, [picked.map((p) => p.question_id)]))[0].n;
+ok(picked.length > 0 && ofIa === 0, 'sorteio do simulado só traz questões oficiais');
 
 console.log('\n5. Mapas de decisão e casos (conjuntos)');
 await asOwner();

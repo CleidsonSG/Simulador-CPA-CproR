@@ -107,16 +107,22 @@ export interface ExamSet {
   questions: [Question, Question];
 }
 
+/**
+ * REGRA DO PROJETO: questão criada por IA nunca entra no simulado nem se mistura às oficiais.
+ * Segunda camada de proteção (a primeira é o banco: tabela separada + constraint, migração 0009).
+ */
+export const isExamEligible = (q: Pick<Question, 'source'>) => q.source !== 'ia';
+
 /** Conjuntos completos da certificação: cenário + exatamente as questões de posição 1 e 2. */
 export function completeSets(cert: Cert, bank: readonly Question[], scenarios: readonly Scenario[]): ExamSet[] {
   const byCode = new Map<string, Question[]>();
   for (const q of bank) {
-    if (q.cert !== cert || !q.scenarioCode) continue;
+    if (q.cert !== cert || !q.scenarioCode || !isExamEligible(q)) continue;
     byCode.set(q.scenarioCode, [...(byCode.get(q.scenarioCode) ?? []), q]);
   }
   const out: ExamSet[] = [];
   for (const s of scenarios) {
-    if (s.cert !== cert) continue;
+    if (s.cert !== cert || s.source === 'ia') continue;
     const qs = [...(byCode.get(s.code) ?? [])].sort((a, b) => (a.scenarioPos ?? 0) - (b.scenarioPos ?? 0));
     if (qs.length === 2 && qs[0].scenarioPos === 1 && qs[1].scenarioPos === 2) out.push({ scenario: s, questions: [qs[0], qs[1]] });
   }
@@ -175,7 +181,7 @@ export function buildExam(cfg: ExamConfig, bank: readonly Question[], opts: Buil
     .sort((a, b) => Number(seen(a)) - Number(seen(b)))
     .slice(0, cfg.sets);
 
-  const mcPool = bank.filter((q) => q.cert === cfg.cert && !q.scenarioCode);
+  const mcPool = bank.filter((q) => q.cert === cfg.cert && !q.scenarioCode && isExamEligible(q));
   const mcSize = examSize({ ...cfg, total: Math.max(0, cfg.total - 2 * sets.length) }, mcPool.length);
   const mc = pickBalanced(cfg.cert, mcPool, mcSize, recent, rng);
 
@@ -244,7 +250,7 @@ export const TRIAL = { cert: 'CPA' as Cert, mc: 5, maps: 1, trainMax: 3 };
  * em bloco, no fim). Usa só o banco recebido — na degustação, o de exemplo.
  */
 export function buildTrial(bank: readonly Question[], scenarios: readonly Scenario[], rng: () => number = Math.random): Question[] {
-  const mc = shuffle(bank.filter((q) => q.cert === TRIAL.cert && !q.scenarioCode), rng).slice(0, TRIAL.mc);
+  const mc = shuffle(bank.filter((q) => q.cert === TRIAL.cert && !q.scenarioCode && isExamEligible(q)), rng).slice(0, TRIAL.mc);
   const maps = shuffle(completeSets(TRIAL.cert, bank, scenarios).filter((s) => s.scenario.kind === 'mapa'), rng).slice(0, TRIAL.maps);
   return [...mc, ...maps.flatMap((s) => s.questions)].map((q) => present(q, rng));
 }
