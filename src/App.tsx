@@ -9,6 +9,8 @@ import { useSession } from './lib/auth';
 import { buildAttempt, enqueue, fetchRemoteHistory, flushOutbox, loadOutbox, mergeHistory, newId } from './lib/sync';
 import { Account } from './components/Account';
 import { NewPassword } from './components/NewPassword';
+import { Admin } from './components/Admin';
+import { fetchMyProfile, type Profile } from './lib/admin';
 import { Home } from './components/Home';
 import { Quiz, type MapPaths } from './components/Quiz';
 import { Result } from './components/Result';
@@ -19,6 +21,7 @@ import { Train, type StartOpts } from './components/Train';
 type Screen =
   | { name: 'home' }
   | { name: 'account' }
+  | { name: 'admin' }
   | { name: 'progress'; cert: Cert }
   | { name: 'plan'; cert: Cert }
   | { name: 'train'; cert: Cert }
@@ -58,8 +61,24 @@ export function App() {
   const [pending, setPending] = useState(0);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
-  const sync = useCallback(async () => {
+  // Perfil (migração 0007): só conta aprovada usa o banco real; admin vê o painel.
+  const [profile, setProfile] = useState<Profile | null>(null);
+  useEffect(() => {
+    setProfile(null);
     if (!supabase || !userId) return;
+    let alive = true;
+    fetchMyProfile(supabase, userId)
+      .then((p) => alive && setProfile(p))
+      .catch(() => alive && setProfile({ status: 'pendente', role: 'aluno' }));
+    return () => {
+      alive = false;
+    };
+  }, [userId, online]);
+  const approved = !!userId && profile?.status === 'aprovado';
+  const isAdmin = approved && profile?.role === 'admin' && !profile.legacy;
+
+  const sync = useCallback(async () => {
+    if (!supabase || !userId || !approved) return;
     try {
       const r = await flushOutbox(supabase, userId);
       setPending(r.left);
@@ -71,7 +90,7 @@ export function App() {
       setPending(loadOutbox().filter((i) => i.userId === userId).length);
       setSyncMsg('Não foi possível falar com o servidor agora. Tentaremos de novo quando houver internet.');
     }
-  }, [userId]);
+  }, [userId, approved]);
 
   useEffect(() => {
     if (online) void sync();
@@ -82,7 +101,7 @@ export function App() {
       setScreen({ name: 'loading' });
       try {
         const cfg = EXAMS[opts.cert];
-        const bank = await loadQuestions(opts.cert, !!userId);
+        const bank = await loadQuestions(opts.cert, approved);
         const single = bank.questions.filter((q) => !q.scenarioCode);
         let questions: Question[];
         let minutes = 0;
@@ -121,7 +140,7 @@ export function App() {
         });
       }
     },
-    [errors, userId],
+    [errors, approved],
   );
 
   const finish = useCallback(
@@ -189,6 +208,16 @@ export function App() {
           <span>Simulador Anbima</span>
         </button>
         <div className="topbar-actions">
+          {isAdmin && (
+            <button
+              className={screen.name === 'admin' ? 'btn btn-primary account-btn' : 'btn btn-ghost account-btn'}
+              onClick={() => setScreen({ name: 'admin' })}
+              aria-label="Painel de administração"
+            >
+              <span aria-hidden="true">⚙</span>
+              <span className="account-label">Admin</span>
+            </button>
+          )}
           {supabase && ready && (
             <button
               className={userId ? 'btn btn-ghost account-btn' : 'btn btn-primary account-btn'}
@@ -224,7 +253,7 @@ export function App() {
       )}
 
       <main className="main">
-        {recovery && <NewPassword onDone={endRecovery} />}
+        {recovery && <NewPassword onDone={endRecovery} invite={recovery === 'convite'} />}
 
         {screen.name === 'home' && supabase && ready && !userId && (
           <div className="banner banner-info" role="note">
@@ -233,8 +262,30 @@ export function App() {
           </div>
         )}
 
+        {screen.name === 'home' && userId && profile?.status === 'pendente' && (
+          <div className="banner banner-warn plan-warn" role="status">
+            <b>Sua conta aguarda aprovação do administrador.</b> Enquanto isso, você pode treinar com as questões de exemplo.
+          </div>
+        )}
+        {screen.name === 'home' && userId && profile?.status === 'bloqueado' && (
+          <div className="banner banner-warn plan-warn" role="alert">
+            <b>Seu acesso ao banco de questões está bloqueado.</b> Fale com o administrador. As questões de exemplo continuam disponíveis.
+          </div>
+        )}
+
         {screen.name === 'account' && (
-          <Account session={session} pending={pending} syncMsg={syncMsg} onSync={() => void sync()} onBack={home} />
+          <Account session={session} profile={profile} pending={pending} syncMsg={syncMsg} onSync={() => void sync()} onBack={home} />
+        )}
+
+        {screen.name === 'admin' && supabase && userId && (
+          isAdmin ? (
+            <Admin sb={supabase} myId={userId} onBack={home} />
+          ) : (
+            <div className="card empty" role="alert">
+              <p>Só o administrador acessa esta área.</p>
+              <button className="btn" onClick={home}>Voltar</button>
+            </div>
+          )
         )}
 
         {screen.name === 'home' && (

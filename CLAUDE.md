@@ -26,6 +26,7 @@ Banco: Supabase (conta separada da do GitHub). Esquema em `supabase/migrations/0
 ## Integridade, recursos e agentes
 - Questões `source='anbima'` são imutáveis (trigger + hash) e mantêm a ordem original das alternativas; só a ordem das questões é sorteada (`buildExam` / SQL `generate_exam`, cotas 20/40/30/10 CPA, 20/20/40/20 C-Pro R e 40/15/25/20 C-Pro I).
 - Recursos: tabela `appeals` → agente `.claude/agents/agente-recursos.md` (`/analisar-recursos`) → `record_decision`. ≥3 deferidos (confiança ≥0,7) de usuários distintos movem a questão para `questions_quarantine` (só admin; reversível com `restore_question`).
+- Perfis e acesso (migração 0007): `profiles` (status pendente|aprovado|bloqueado, role aluno|admin). Só aprovado lê questões e grava (RLS via `is_approved()`); admin = perfil admin aprovado (`is_admin()`; `app_admins` só serviu para migrar). Cadastro novo fica pendente (ou aprovado se `cadastro_auto_aprovar`=1); convite (Edge Function `supabase/functions/admin-usuarios`) entra aprovado. Painel: `src/components/Admin.tsx` + funções `admin_*`; admin não se bloqueia e nunca fica sem administrador.
 - Criador de questões: `.claude/agents/criador-questoes.md` → `insert_generated_question` (source='ia'; sem verificação fica em `revisao`).
 - Validar SQL: `npm run test:sql` (PGlite, aplica todas as migrações em ordem e SEM GRANT automático, como projeto novo do Supabase: tabela nova precisa de GRANT explícito em migração). Texto integral dos PDFs do PD em `knowledge-private/` (fora do Git); links em `knowledge/FONTES.md`.
 

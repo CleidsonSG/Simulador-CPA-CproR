@@ -1,6 +1,13 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 /**
+ * Chegou pelo link de convite? O Supabase põe `type=invite` no endereço e o cliente o apaga ao ler a sessão,
+ * então é lido aqui, ANTES de criar o cliente. Quem chega por convite precisa criar a senha.
+ */
+export const cameFromInvite =
+  typeof window !== 'undefined' && /(^|[#&?])type=invite(&|$)/.test(window.location.hash + window.location.search);
+
+/**
  * Cliente do Supabase. Só usa a URL e a chave PÚBLICA (anon/publishable) — nunca a chave de serviço.
  * Sem `.env` (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY), fica null e o app roda com as questões de exemplo.
  */

@@ -43,21 +43,24 @@ process.on('uncaughtException', fatal);
 await db.exec(`
   create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
   create schema auth;
-  create table auth.users (id uuid primary key);
+  create table auth.users (
+    id uuid primary key, email varchar(255), invited_at timestamptz, email_confirmed_at timestamptz default now(),
+    last_sign_in_at timestamptz, raw_user_meta_data jsonb default '{}'::jsonb, created_at timestamptz default now());
   create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   create function auth.role() returns text language sql stable as $$ select nullif(current_setting('request.jwt.claim.role', true), '') $$;
   grant usage on schema auth to anon, authenticated, service_role;
 `);
 const MIGRATIONS = readdirSync(new URL('../migrations/', import.meta.url)).filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort();
-for (const f of MIGRATIONS) {
-  await db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
-}
-console.log(`Migrações aplicadas sem erro: ${MIGRATIONS.join(', ')}.\n`);
+const apply = async (f) => db.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8'));
 
+// Como no projeto real: as contas (e o admin em app_admins) já existiam antes da 0007 (perfis).
 const ADMIN = '00000000-0000-0000-0000-0000000000aa';
 const U = (n) => `00000000-0000-0000-0000-00000000000${n}`;
-await db.exec(`insert into auth.users(id) values ('${ADMIN}'), ('${U(1)}'), ('${U(2)}'), ('${U(3)}'), ('${U(4)}');
+for (const f of MIGRATIONS.filter((m) => m < '0007')) await apply(f);
+await db.exec(`insert into auth.users(id, email) values ('${ADMIN}','admin@teste'), ('${U(1)}','u1@teste'), ('${U(2)}','u2@teste'), ('${U(3)}','u3@teste'), ('${U(4)}','u4@teste');
                insert into public.app_admins(user_id) values ('${ADMIN}');`);
+for (const f of MIGRATIONS.filter((m) => m >= '0007')) await apply(f);
+console.log(`Migrações aplicadas sem erro: ${MIGRATIONS.join(', ')}.\n`);
 const as = async (sub, role = 'authenticated') => {
   await db.exec(`reset role; select set_config('request.jwt.claim.sub', '${sub ?? ''}', false), set_config('request.jwt.claim.role', '${role}', false); set role ${role};`);
 };
@@ -258,6 +261,92 @@ const sc = await q1(`select * from public.generate_exam_scenarios('CPA')`);
 ok(sc.length === 1 && sc[0].scenario_code === 'T001', 'sorteia o conjunto completo');
 const mc = await q1(`select * from public.generate_exam('CPA', 50)`);
 ok(!mc.some(r => ['T001'].includes(r.scenario_code)) && (await q1(`select count(*)::int n from public.questions q join public.generate_exam('CPA', 50) g on g.question_id = q.id where q.scenario_code is not null`))[0].n === 0, 'sorteio de múltipla escolha ignora questões de conjunto');
+
+console.log('\n6. Perfis, aprovação de acesso e painel de administração');
+const N = (n) => `00000000-0000-0000-0000-0000000001${String(n).padStart(2, '0')}`;
+const prof = async (id) => { await asOwner(); return (await q1(`select status, role, invited, email from public.profiles where user_id = $1`, [id]))[0]; };
+const signup = async (id, extra = '') => { await asOwner(); await db.exec(`insert into auth.users (id, email${extra ? ', ' + extra.split('|')[0] : ''}) values ('${id}', '${id.slice(-3)}@teste'${extra ? ', ' + extra.split('|')[1] : ''})`); };
+const readsQuestions = async (id) => { await as(id); return (await q1(`select count(*)::int n from public.questions`))[0].n; };
+
+let p = await prof(ADMIN);
+ok(p.status === 'aprovado' && p.role === 'admin', 'conta que já era admin (app_admins) virou perfil admin aprovado');
+p = await prof(U(1));
+ok(p.status === 'aprovado' && p.role === 'aluno', 'contas que já existiam ficaram aprovadas como aluno');
+
+await signup(N(1));
+p = await prof(N(1));
+ok(p.status === 'pendente' && p.role === 'aluno' && !p.invited, 'cadastro novo entra pendente, como aluno');
+ok((await readsQuestions(N(1))) === 0, 'pendente não lê nenhuma questão');
+ok((await q1(`select count(*)::int n from public.question_scenarios`))[0].n === 0, 'pendente não lê mapas e casos');
+ok((await q1(`select count(*)::int n from public.generate_exam('CPA')`))[0].n === 0, 'pendente não consegue sortear prova');
+await rejects(() => db.query(`insert into public.attempts (cert, total, pass_mark) values ('CPA', 50, 35)`), 'pendente não grava tentativa (RLS)');
+await rejects(() => db.query(`insert into public.appeals (question_id, cert, category, argument) values ($1,'CPA','outro','Argumento de teste com mais de vinte caracteres.')`, [someQ]), 'pendente não envia recurso (RLS)');
+ok((await q1(`select count(*)::int n from public.profiles`))[0].n === 1, 'usuário comum só enxerga o próprio perfil');
+await rejects(() => db.query(`update public.profiles set status = 'aprovado' where user_id = $1`, [N(1)]), 'ninguém se aprova sozinho (sem permissão de update)', { grant: true });
+await rejects(() => db.query(`select * from public.admin_list_users()`), 'não-admin não lista usuários');
+await rejects(() => db.query(`select public.admin_set_user($1, 'aprovado')`, [N(1)]), 'não-admin não aprova ninguém');
+await rejects(() => db.query(`select public.admin_set_signup_auto(true)`), 'não-admin não muda o cadastro');
+
+await signup(N(2), `raw_user_meta_data|'{"convite_perfil":"admin"}'::jsonb`);
+p = await prof(N(2));
+ok(p.status === 'pendente' && p.role === 'aluno', 'cadastro comum com "convite_perfil=admin" forjado NÃO vira admin nem é aprovado');
+
+await signup(N(3), `invited_at, raw_user_meta_data|now(), '{"convite_perfil":"admin"}'::jsonb`);
+p = await prof(N(3));
+ok(p.status === 'aprovado' && p.role === 'admin' && p.invited, 'convite de admin entra aprovado como admin');
+await signup(N(4), `invited_at, raw_user_meta_data|now(), '{"convite_perfil":"aluno"}'::jsonb`);
+p = await prof(N(4));
+ok(p.status === 'aprovado' && p.role === 'aluno', 'convite de aluno entra aprovado como aluno');
+
+await as(ADMIN);
+const listed = await allows(() => q1(`select * from public.admin_list_users()`), 'admin lista os usuários');
+ok((listed ?? []).length >= 9 && listed[0].status === 'pendente', 'lista traz todos, com os pendentes primeiro');
+await allows(() => db.query(`select public.admin_set_user($1, 'aprovado')`, [N(1)]), 'admin aprova um pendente');
+ok((await readsQuestions(N(1))) > 0, 'aprovado passa a ler as questões');
+await allows(() => db.query(`insert into public.attempts (cert, total, pass_mark) values ('CPA', 50, 35)`), 'aprovado grava tentativa');
+
+await as(ADMIN);
+await db.query(`select public.admin_set_user($1, 'bloqueado')`, [U(1)]);
+ok((await readsQuestions(U(1))) === 0, 'bloqueado perde o acesso às questões na hora');
+await rejects(() => db.query(`insert into public.attempts (cert, total, pass_mark) values ('CPA', 50, 35)`), 'bloqueado não grava tentativa');
+await as(ADMIN);
+await db.query(`select public.admin_set_user($1, 'aprovado')`, [U(1)]);
+ok((await readsQuestions(U(1))) > 0, 'desbloquear devolve o acesso');
+
+await as(ADMIN);
+await rejects(() => db.query(`select public.admin_set_user($1, 'bloqueado')`, [ADMIN]), 'admin não bloqueia a própria conta');
+await rejects(() => db.query(`select public.admin_set_user($1, null, 'aluno')`, [ADMIN]), 'admin não se rebaixa');
+await rejects(() => db.query(`select public.admin_set_user($1, 'qualquer')`, [N(1)]), 'situação inválida é recusada');
+await allows(() => db.query(`select public.admin_set_user($1, null, 'admin')`, [U(2)]), 'admin promove outro usuário a admin');
+await as(U(2));
+ok((await q1(`select count(*)::int n from public.admin_list_users()`))[0].n > 0, 'novo admin já usa o painel');
+await as(ADMIN);
+await db.query(`select public.admin_set_user($1, null, 'aluno')`, [U(2)]);
+await as(U(2));
+await rejects(() => db.query(`select * from public.admin_list_users()`), 'rebaixado perde o painel na hora');
+// Último admin: nem a chave de serviço deixa o sistema sem administrador.
+await asOwner();
+await db.exec(`update public.profiles set role = 'aluno' where role = 'admin' and user_id <> '${ADMIN}'`);
+await as(null, 'service_role');
+await rejects(() => db.query(`select public.admin_set_user($1, 'bloqueado')`, [ADMIN]), 'não deixa bloquear o último administrador', { grant: false });
+
+await as(ADMIN);
+ok((await q1(`select public.admin_get_signup_auto() v`))[0].v === false, 'padrão: cadastro novo fica pendente');
+await db.query(`select public.admin_set_signup_auto(true)`);
+await signup(N(5));
+ok((await prof(N(5))).status === 'aprovado', 'com "aprovar automaticamente", cadastro novo já entra aprovado');
+await as(ADMIN);
+await db.query(`select public.admin_set_signup_auto(false)`);
+await signup(N(6));
+ok((await prof(N(6))).status === 'pendente', 'desligado de novo: volta a ficar pendente');
+
+await asOwner();
+await db.exec(`update auth.users set email = 'novo@teste' where id = '${N(6)}'`);
+ok((await prof(N(6))).email === 'novo@teste', 'troca de e-mail no Auth atualiza o perfil');
+
+await as(null, 'anon');
+await rejects(() => db.query(`select * from public.admin_list_users()`), 'anon não chama as funções do painel', { grant: true });
+await asOwner();
 
 console.log(failed ? `\n${failed} verificação(ões) FALHARAM` : '\nTodas as verificações passaram.');
 process.exit(failed ? 1 : 0);

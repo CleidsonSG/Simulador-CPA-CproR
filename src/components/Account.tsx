@@ -2,9 +2,11 @@ import { useState, type FormEvent } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { authMessage, validateCredentials } from '../lib/auth';
+import { STATUS_ICON, STATUS_LABEL, ROLE_LABEL, type Profile } from '../lib/admin';
 
 interface Props {
   session: Session | null;
+  profile: Profile | null;
   pending: number;
   syncMsg: string | null;
   onSync: () => void;
@@ -13,7 +15,7 @@ interface Props {
 
 type Mode = 'entrar' | 'criar' | 'esqueci';
 
-export function Account({ session, pending, syncMsg, onSync, onBack }: Props) {
+export function Account({ session, profile, pending, syncMsg, onSync, onBack }: Props) {
   const [mode, setMode] = useState<Mode>('entrar');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,7 +43,21 @@ export function Account({ session, pending, syncMsg, onSync, onBack }: Props) {
           <p>
             Conectado como <b>{session.user.email}</b>.
           </p>
-          <p className="muted small">Os simulados usam o banco real de questões e ficam salvos na sua conta.</p>
+          {profile && !profile.legacy && (
+            <p>
+              <span className={`tag st-${profile.status}`}>{STATUS_ICON[profile.status]} {STATUS_LABEL[profile.status]}</span>{' '}
+              <span className="tag tag-soft">{ROLE_LABEL[profile.role]}</span>
+            </p>
+          )}
+          <p className="muted small">
+            {!profile
+              ? 'Carregando sua conta…'
+              : profile.status === 'aprovado'
+              ? 'Os simulados usam o banco real de questões e ficam salvos na sua conta.'
+              : profile.status === 'bloqueado'
+                ? 'Seu acesso ao banco de questões está bloqueado. Fale com o administrador.'
+                : 'Sua conta aguarda aprovação do administrador. Enquanto isso, use as questões de exemplo.'}
+          </p>
           {pending > 0 ? (
             <div className="banner banner-warn plan-warn" role="status">
               {pending} envio(s) aguardando internet.{' '}

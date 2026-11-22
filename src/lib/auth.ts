@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { cameFromInvite, supabase } from './supabase';
+
+let inviteShown = false;
+
+/** recovery: 'senha' = link de nova senha; 'convite' = primeiro acesso por convite (criar a senha). */
+export type Recovery = false | 'senha' | 'convite';
 
 /** Sessão do Supabase Auth. Sem Supabase configurado, fica sempre deslogado e pronto (modo demonstração). */
-export function useSession(): { session: Session | null; ready: boolean; recovery: boolean; endRecovery: () => void } {
+export function useSession(): { session: Session | null; ready: boolean; recovery: Recovery; endRecovery: () => void } {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(!supabase);
-  // Veio pelo link de "esqueci a senha": mostrar o formulário de nova senha.
-  const [recovery, setRecovery] = useState(false);
+  // Veio pelo link de nova senha ou de convite: mostrar o formulário de senha.
+  const [recovery, setRecovery] = useState<Recovery>(false);
   useEffect(() => {
     if (!supabase) return;
     let alive = true;
@@ -18,7 +23,11 @@ export function useSession(): { session: Session | null; ready: boolean; recover
     });
     const { data } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
-      if (event === 'PASSWORD_RECOVERY') setRecovery(true);
+      if (event === 'PASSWORD_RECOVERY') setRecovery('senha');
+      else if (event === 'SIGNED_IN' && cameFromInvite && !inviteShown) {
+        inviteShown = true;
+        setRecovery('convite');
+      }
     });
     return () => {
       alive = false;
