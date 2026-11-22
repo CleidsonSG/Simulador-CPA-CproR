@@ -121,7 +121,7 @@ export function Quiz({ cfg, questions, scenarios, mode, topic, minutes, isSample
 
   const exitButton = (
     <button
-      className={confirmExit ? 'btn btn-danger' : 'btn btn-ghost'}
+      className={confirmExit ? 'btn btn-primary' : 'btn btn-ghost'}
       onClick={() => {
         if (confirmExit) onExit();
         else {
@@ -200,14 +200,14 @@ export function Quiz({ cfg, questions, scenarios, mode, topic, minutes, isSample
               <p className="explain">{q.explanation}</p>
             </>
           )}
-          {appealed ? (
+          {chosen !== q.correctIndex && (appealed ? (
             <p className="muted small">✓ Recurso enviado. Será analisado.</p>
           ) : (
             <button className="btn btn-ghost small btn-appeal" onClick={() => setAppealOpen(!appealOpen)} aria-expanded={appealOpen}>
               Contestar esta questão
             </button>
-          )}
-          {appealOpen && !appealed && (
+          ))}
+          {chosen !== q.correctIndex && appealOpen && !appealed && (
             <div className="appeal-form">
               <label className="small" htmlFor="ap-cat">Motivo</label>
               <select id="ap-cat" value={appealCat} onChange={(e) => setAppealCat(e.target.value as AppealCategory)}>
