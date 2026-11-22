@@ -33,7 +33,7 @@ Banco: Supabase (conta separada da do GitHub). Esquema em `supabase/migrations/0
 ## Mapas de decisão e casos (migração 0004)
 - Tabela `question_scenarios` (code, cert, kind `mapa`|`caso`, body jsonb, status). Mapa: `body = {intro, pergunta, rootKey, nodes}`; cada nó `{client, pergunta, options[4], next[{gerente, child}], end, endText}`. Caso: `body = {html}` (texto-base com tabelas).
 - Cada conjunto tem 2 questões de múltipla escolha em `questions` (`scenario_code`, `scenario_pos` 1–2), com correção só no fim do conjunto/prova. As opções do mapa não têm gabarito; só as 2 questões finais valem.
-- Já importados (source='anbima'): 8 mapas (CPA 5, C-Pro R 3) e 11 casos (C-Pro R 5, C-Pro I 6). Casos 000105 e 000175 ficam em `revisao` (gráficos em links que expiram; capturar as imagens antes de publicar).
+- Já importados (source='anbima'): 8 mapas (CPA 5, C-Pro R 3) e 11 casos (C-Pro R 5, C-Pro I 6). Casos 000105 e 000175: liberados para publicação sem os gráficos (o dono conferiu que dá para responder pelo texto; o app avisa que o gráfico citado não está disponível). Se um dia capturar as imagens, subir no Storage do projeto.
 - `generate_exam` agora ignora questões de conjunto; `generate_exam_scenarios(cert)` sorteia os conjuntos (CPA 5, C-Pro R 7, C-Pro I 5). Prova = MC + 2 questões por conjunto.
 - O portal mostra o gabarito sempre na alternativa A nos itens de conjunto: embaralhar só a exibição (nunca o banco).
 - Faltam 3 questões MC da C-Pro I (000080, 000081 e mais 1) para importar.
@@ -50,5 +50,5 @@ imagens de caso só do Storage do projeto.
 2. No Supabase Auth: Site URL / Redirect URLs com o endereço do app (confirmação de e-mail e recuperação de senha).
 3. Rodar a importação (`npm run import`, depois `npm run import:aplicar`) com `data-private/`.
 4. Testar um mapa real importado (confirmar `next[i]` ↔ `options[i]`).
-5. Capturar os gráficos dos casos 000105 e 000175 no Storage e publicá-los.
+5. ✓ Casos 000105 e 000175 publicados sem os gráficos (aviso no app).
 6. Caderno de erros e plano ainda são só locais (podem passar a vir de `attempt_answers`).

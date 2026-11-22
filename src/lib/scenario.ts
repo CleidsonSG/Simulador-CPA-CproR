@@ -111,3 +111,16 @@ export function typingDelay(text: string, reduced = false): number {
   if (reduced) return 0;
   return Math.round(Math.min(1800, Math.max(600, 300 + text.length * 18)));
 }
+
+/**
+ * Quantas imagens o texto do caso cita/contém e não vão aparecer: <img> fora do Storage do projeto
+ * (ex.: links do portal que expiram) e menções a "Gráfico N" sem nenhuma imagem válida.
+ * Serve para avisar o aluno de que o caso pode ser respondido pelo texto.
+ */
+export function missingFigures(html: string, imagePrefix?: string | null): number {
+  const imgs = [...html.matchAll(/<img\b([^<>]*)>/gi)].map((m) => m[1]);
+  const valid = imgs.filter((a) => safeImg(a, imagePrefix) !== '').length;
+  const dropped = imgs.length - valid;
+  const cited = new Set([...html.replace(/<[^>]*>/g, ' ').matchAll(/gr[áa]fico\s*(\d+)/gi)].map((m) => m[1])).size;
+  return Math.max(dropped, valid === 0 ? cited : 0);
+}

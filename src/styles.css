@@ -366,3 +366,4 @@ p { margin: 0 0 8px; }
 .radio-card.on { border-color: var(--primary); background: var(--primary-soft); }
 .radio-card input { width: 20px; height: 20px; margin-top: 2px; flex: none; accent-color: var(--primary); }
 .radio-card > span { display: grid; gap: 2px; }
+.case-note { margin: 0 0 10px; padding: 8px 12px; border-radius: 10px; background: var(--warn-bg); color: var(--warn-ink); }

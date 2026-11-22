@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { MapBody } from '../types';
-import { gerenteLine, sanitizeHtml, typingDelay, walkMap, type MapStep } from '../lib/scenario';
+import { gerenteLine, missingFigures, sanitizeHtml, typingDelay, walkMap, type MapStep } from '../lib/scenario';
 import { storageImagePrefix } from '../lib/supabase';
 
 const LETTERS = ['A', 'B', 'C', 'D'];
@@ -11,7 +11,17 @@ const prefersReduced = () =>
 /** Texto-base do caso. O HTML vem do banco e sempre passa pelo sanitizador. */
 export function CaseText({ html }: { html: string }) {
   const clean = useMemo(() => sanitizeHtml(html, storageImagePrefix), [html]);
-  return <div className="case-body" dangerouslySetInnerHTML={{ __html: clean }} />;
+  const missing = useMemo(() => missingFigures(html, storageImagePrefix), [html]);
+  return (
+    <>
+      {missing > 0 && (
+        <p className="case-note small" role="note">
+          ⓘ O texto cita {missing === 1 ? "um gráfico que não está disponível" : "gráficos que não estão disponíveis"}. As informações necessárias para responder estão no próprio texto.
+        </p>
+      )}
+      <div className="case-body" dangerouslySetInnerHTML={{ __html: clean }} />
+    </>
+  );
 }
 
 function Bubble({ who, children }: { who: 'cliente' | 'gerente'; children: ReactNode }) {

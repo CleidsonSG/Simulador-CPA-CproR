@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gerenteLine, sanitizeHtml, typingDelay, walkMap } from './scenario';
+import { gerenteLine, missingFigures, sanitizeHtml, typingDelay, walkMap } from './scenario';
 import type { MapBody } from '../types';
 import { SAMPLE_SCENARIOS } from '../data/sampleScenarios';
 
@@ -79,5 +79,21 @@ describe('sanitizeHtml (texto-base do caso)', () => {
   });
   it('remove comentários e tags maiúsculas perigosas', () => {
     expect(sanitizeHtml('<!-- x --><SCRIPT>bad()</SCRIPT><P>ok</P>')).toBe('<p>ok</p>');
+  });
+});
+
+describe('gráficos ausentes no texto do caso', () => {
+  const P = 'https://abc.supabase.co/storage/v1/object/public/';
+  it('conta imagens descartadas (links externos que expiram)', () => {
+    expect(missingFigures('<p>x</p><img src="https://portal.exemplo/g1.png?exp=1"><img src="https://portal.exemplo/g2.png">', P)).toBe(2);
+  });
+  it('conta "Gráfico N" citados quando não há nenhuma imagem válida', () => {
+    expect(missingFigures('<p>Carga tributária (Gráfico 2) e CDS (Gráfico 3); ver Gráfico 2.</p>', P)).toBe(2);
+  });
+  it('não avisa quando as imagens estão no Storage do projeto', () => {
+    expect(missingFigures(`<p>Ver Gráfico 1</p><img src="${P}casos/g1.png">`, P)).toBe(0);
+  });
+  it('texto sem gráficos: sem aviso', () => {
+    expect(missingFigures('<table><tr><td>1</td></tr></table>', P)).toBe(0);
   });
 });
