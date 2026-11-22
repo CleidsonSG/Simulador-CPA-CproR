@@ -63,11 +63,15 @@ describe('prova balanceada', () => {
     expect(exam).toHaveLength(12);
   });
 
-  it('questões da Anbima mantêm as alternativas EXATAMENTE como no original', () => {
+  it('questões da Anbima: o texto das alternativas não muda, só a ordem na tela (e o banco fica intacto)', () => {
     const b = bank('anbima');
-    for (let i = 0; i < 100; i++) {
-      for (const q of buildExam(EXAMS.CPA, b)) expect(q.options).toEqual(['A1', 'B2', 'C3', 'D4']);
+    for (let i = 0; i < 20; i++) {
+      for (const q of buildExam(EXAMS.CPA, b)) {
+        expect([...q.options].sort()).toEqual(['A1', 'B2', 'C3', 'D4']);
+        expect(q.optionOrder!.map((k) => ['A1', 'B2', 'C3', 'D4'][k])).toEqual(q.options);
+      }
     }
+    for (const q of b) expect(q.options).toEqual(['A1', 'B2', 'C3', 'D4']);
   });
 
   it('questões de exemplo/IA podem ter as alternativas embaralhadas, sem perder o gabarito', () => {

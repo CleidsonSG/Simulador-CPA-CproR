@@ -24,7 +24,7 @@ Banco: Supabase (conta separada da do GitHub). Esquema em `supabase/migrations/0
 - Ponto único de dados: `src/data/source.ts` (`loadQuestions`): banco real com login (`fetchBank`, só `publicada` e `year >= 2026`), senão exemplos.
 
 ## Integridade, recursos e agentes
-- Questões `source='anbima'` são imutáveis (trigger + hash) e mantêm a ordem original das alternativas; só a ordem das questões é sorteada (`buildExam` / SQL `generate_exam`, cotas 20/40/30/10 CPA, 20/20/40/20 C-Pro R e 40/15/25/20 C-Pro I).
+- Questões `source='anbima'` são imutáveis no banco (trigger + hash). O portal grava o gabarito sempre na A, então o app embaralha as alternativas SÓ na exibição (`present`; `optionOrder` leva a resposta de volta ao índice do banco em tentativas e recursos; alternativas que citam outras, como "todas as anteriores", ficam na ordem). Sorteio das questões: `buildExam` / SQL `generate_exam` (cotas 20/40/30/10 CPA, 20/20/40/20 C-Pro R e 40/15/25/20 C-Pro I).
 - Recursos: tabela `appeals` → agente `.claude/agents/agente-recursos.md` (`/analisar-recursos`) → `record_decision`. ≥3 deferidos (confiança ≥0,7) de usuários distintos movem a questão para `questions_quarantine` (só admin; reversível com `restore_question`).
 - Perfis e acesso (migração 0007): `profiles` (status pendente|aprovado|bloqueado, role aluno|admin). Só aprovado lê questões e grava (RLS via `is_approved()`); admin = perfil admin aprovado (`is_admin()`; `app_admins` só serviu para migrar). Cadastro novo fica pendente (ou aprovado se `cadastro_auto_aprovar`=1); convite (Edge Function `supabase/functions/admin-usuarios`) entra aprovado. Painel: `src/components/Admin.tsx` + funções `admin_*`; admin não se bloqueia e nunca fica sem administrador.
 - Criador de questões: `.claude/agents/criador-questoes.md` → `insert_generated_question` (source='ia'; sem verificação fica em `revisao`).
@@ -35,7 +35,7 @@ Banco: Supabase (conta separada da do GitHub). Esquema em `supabase/migrations/0
 - Cada conjunto tem 2 questões de múltipla escolha em `questions` (`scenario_code`, `scenario_pos` 1–2), com correção só no fim do conjunto/prova. As opções do mapa não têm gabarito; só as 2 questões finais valem.
 - Já importados (source='anbima'): 8 mapas (CPA 5, C-Pro R 3) e 11 casos (C-Pro R 5, C-Pro I 6). Casos 000105 e 000175: liberados para publicação sem os gráficos (o dono conferiu que dá para responder pelo texto; o app avisa que o gráfico citado não está disponível). Se um dia capturar as imagens, subir no Storage do projeto.
 - `generate_exam` agora ignora questões de conjunto; `generate_exam_scenarios(cert)` sorteia os conjuntos (CPA 5, C-Pro R 7, C-Pro I 5). Prova = MC + 2 questões por conjunto.
-- O portal mostra o gabarito sempre na alternativa A nos itens de conjunto: embaralhar só a exibição (nunca o banco).
+- O portal mostra o gabarito sempre na alternativa A (conjuntos e MC): embaralhar só a exibição (nunca o banco).
 - Faltam 3 questões MC da C-Pro I (000080, 000081 e mais 1) para importar.
 
 ## Visual (diretrizes do projeto)

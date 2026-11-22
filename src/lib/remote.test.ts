@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { rowToQuestion, rowToScenario, type QuestionRow, type ScenarioRow } from '../data/remote';
-import { buildAttempt, enqueue, flushOutbox, isPermanent, isUuid, loadOutbox, mergeHistory, newId, toAttemptRecords } from './sync';
+import { buildAttempt, enqueue, flushOutbox, isPermanent, isUuid, loadOutbox, mergeHistory, newId, originalIndex, toAttemptRecords } from './sync';
 import { authMessage, validateCredentials } from './auth';
 import { sanitizeHtml } from './scenario';
 import { grade } from './exam';
@@ -56,6 +56,15 @@ describe('envio de tentativas e recursos', () => {
     const r = buildAttempt(U(9), 'CPA', qs, answers, g, 2, 60, new Date('2026-11-21T12:00:00Z'));
     expect(r.attempt).toMatchObject({ id: U(9), correct: 2, total: 3, pass_mark: 2, passed: true, started_at: '2026-11-21T11:59:00.000Z' });
     expect(r.answers.map((a) => [a.question_id, a.is_correct])).toEqual([[U(1), true], [U(2), false]]);
+  });
+
+  it('alternativas embaralhadas na tela: grava a resposta no índice do banco', () => {
+    const shown: Question = { ...qs[0], options: ['d', 'a', 'c', 'b'], correctIndex: 1, optionOrder: [3, 0, 2, 1] };
+    const r = buildAttempt(U(9), 'CPA', [shown], { [U(1)]: 1 }, grade([shown], { [U(1)]: 1 }), 1, 10, new Date());
+    expect(r.answers[0]).toMatchObject({ chosen_index: 0, is_correct: true });
+    expect(originalIndex(shown, 0)).toBe(3);
+    expect(originalIndex(shown, undefined)).toBeNull();
+    expect(originalIndex(qs[0], 2)).toBe(2); // sem embaralhar
   });
 
   it('newId gera uuid', () => expect(isUuid(newId())).toBe(true));

@@ -15,7 +15,7 @@ export interface Question {
   correctIndex: number;
   explanation: string;
   /**
-   * anbima = texto original, IMUTÁVEL (nem as alternativas podem ser reordenadas);
+   * anbima = texto original, IMUTÁVEL no banco (a ordem das alternativas só muda na exibição);
    * ia = criada pelo agente criador de questões; exemplo = questões de demonstração do projeto.
    */
   source: 'anbima' | 'ia' | 'exemplo';
@@ -23,6 +23,11 @@ export interface Question {
   pdCode?: string;
   /** Quem escreveu a explicação: a própria Anbima ou a IA. */
   explanationSource?: 'anbima' | 'ia';
+  /**
+   * Só na exibição: posição original de cada alternativa mostrada (optionOrder[i] = índice no banco).
+   * Ausente = ordem original. Serve para gravar a resposta no índice do banco.
+   */
+  optionOrder?: number[];
   /** Questão de conjunto (mapa de decisão ou caso): código do cenário e posição (1 ou 2). */
   scenarioCode?: string;
   scenarioPos?: number;

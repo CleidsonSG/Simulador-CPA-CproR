@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EXAMS, buildExam, completeSets, passMark, present, setRange } from './exam';
+import { EXAMS, buildExam, completeSets, passMark, optionsReferToEachOther, present, setRange } from './exam';
 import type { Cert, Question, Scenario } from '../types';
 import { SAMPLE_SCENARIOS, SAMPLE_SCENARIO_QUESTIONS } from '../data/sampleScenarios';
 import { SAMPLE_QUESTIONS } from '../data/sampleQuestions';
@@ -113,8 +113,36 @@ describe('conjuntos (mapas e casos) na prova', () => {
     }
     expect(seenPositions.size).toBeGreaterThan(1);
     expect(q.options[0]).toBe('certa'); // o original não muda
-    const plain = mc('Y', 'CPA', '1.1');
-    expect(present(plain)).toBe(plain); // MC da Anbima segue intocada
+  });
+
+  it('MC da Anbima (gabarito sempre em A no portal): embaralha só a exibição e anota a ordem original', () => {
+    const plain = { ...mc('Y', 'CPA', '1.1'), options: ['certa', 'b', 'c', 'd'] };
+    const positions = new Set<number>();
+    for (let s = 1; s < 40; s++) {
+      const p = present(plain, seeded(s));
+      expect(p.options[p.correctIndex]).toBe('certa');
+      expect(p.optionOrder!.map((i) => plain.options[i])).toEqual(p.options);
+      positions.add(p.correctIndex);
+    }
+    expect(positions.size).toBe(4);
+    expect(plain.options[0]).toBe('certa'); // o original não muda
+    expect(plain.optionOrder).toBeUndefined();
+  });
+
+  it('embaralhar de novo continua apontando para o índice do banco', () => {
+    const plain = { ...mc('Z', 'CPA', '1.1'), options: ['certa', 'b', 'c', 'd'] };
+    const twice = present(present(plain, seeded(3)), seeded(8));
+    expect(twice.optionOrder!.map((i) => plain.options[i])).toEqual(twice.options);
+  });
+
+  it('alternativas que citam outras ("todas as anteriores", "A e B") mantêm a ordem', () => {
+    expect(optionsReferToEachOther(['x', 'y', 'z', 'Todas as anteriores.'])).toBe(true);
+    expect(optionsReferToEachOther(['x', 'y', 'Nenhuma das alternativas acima.', 'z'])).toBe(true);
+    expect(optionsReferToEachOther(['x', 'y', 'A e B estão corretas.', 'z'])).toBe(true);
+    expect(optionsReferToEachOther(['x', 'y', 'Alternativas A, B e C.', 'z'])).toBe(true);
+    expect(optionsReferToEachOther(['I e II, apenas.', 'CDB e LCA.', 'Renda fixa e ações.', 'Ações'])).toBe(false);
+    const q = { ...mc('W', 'CPA', '1.1'), options: ['a', 'b', 'c', 'Todas as anteriores.'] };
+    expect(present(q, seeded(2))).toBe(q);
   });
 });
 

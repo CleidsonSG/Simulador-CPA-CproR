@@ -73,10 +73,16 @@ export function buildAttempt(
       .map((q) => ({
         attempt_id: id,
         question_id: q.id,
-        chosen_index: answers[q.id] ?? null,
+        chosen_index: originalIndex(q, answers[q.id]),
         is_correct: answers[q.id] === q.correctIndex,
       })),
   };
+}
+
+/** Resposta no índice do banco (a tela pode mostrar as alternativas em outra ordem). */
+export function originalIndex(q: Pick<Question, 'optionOrder'>, shown: number | undefined): number | null {
+  if (shown === undefined || shown === null) return null;
+  return q.optionOrder?.[shown] ?? shown;
 }
 
 const KEY = 'simulador-anbima:caixa-de-saida:v1';

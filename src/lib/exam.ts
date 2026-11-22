@@ -56,25 +56,36 @@ export function shuffle<T>(items: readonly T[], rng: () => number = Math.random)
   return arr;
 }
 
-/** Embaralha as alternativas mantendo o gabarito correto. */
+/** Embaralha as alternativas mantendo o gabarito correto (e anotando a ordem original em optionOrder). */
 export function shuffleOptions(q: Question, rng: () => number = Math.random): Question {
   const order = shuffle(q.options.map((_, i) => i), rng);
+  const base = q.optionOrder ?? q.options.map((_, i) => i);
   return {
     ...q,
     options: order.map((i) => q.options[i]),
     correctIndex: order.indexOf(q.correctIndex),
+    optionOrder: order.map((i) => base[i]),
   };
 }
 
+/** Alternativa que cita outras pela letra ou pela posição ("todas as anteriores", "A e B"): a ordem importa. */
+export function optionsReferToEachOther(options: readonly string[]): boolean {
+  return options.some(
+    (o) =>
+      /\b(todas|nenhuma|ambas)\s+(as|das)\s+(alternativas\s+)?(anteriores|acima)/i.test(o) ||
+      /\balternativas?\s+[A-D]\b/i.test(o) ||
+      /\b[A-D]\s*(,|e|ou)\s*[A-D]\b/.test(o),
+  );
+}
+
 /**
- * Apresentação da questão. As questões da Anbima são mostradas EXATAMENTE como no original:
- * nem as alternativas mudam de posição. Só as demais (ia/exemplo) podem ter as alternativas embaralhadas.
- * Exceção: questões de conjunto (mapa/caso). O portal da Anbima grava o gabarito sempre na alternativa A,
- * então a ordem é embaralhada só na exibição; o banco continua intacto.
+ * Apresentação da questão: as alternativas são embaralhadas SÓ na exibição; o banco continua intacto
+ * (as questões da Anbima são imutáveis). Motivo: o portal da Anbima grava o gabarito sempre na
+ * alternativa A — sem embaralhar, o aluno acertaria pelo padrão.
+ * Exceção: alternativas que citam outras pela letra/posição mantêm a ordem original.
  */
 export function present(q: Question, rng: () => number = Math.random): Question {
-  if (q.scenarioCode) return shuffleOptions(q, rng);
-  return q.source === 'anbima' ? q : shuffleOptions(q, rng);
+  return optionsReferToEachOther(q.options) ? q : shuffleOptions(q, rng);
 }
 
 export interface BuildOpts {

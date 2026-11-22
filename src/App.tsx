@@ -6,7 +6,7 @@ import { loadErrors, loadHistory, loadLastExam, loadTheme, saveAttempt, saveErro
 import { loadQuestions } from './data/source';
 import { supabase } from './lib/supabase';
 import { useSession } from './lib/auth';
-import { buildAttempt, enqueue, fetchRemoteHistory, flushOutbox, loadOutbox, mergeHistory, newId } from './lib/sync';
+import { buildAttempt, enqueue, fetchRemoteHistory, flushOutbox, loadOutbox, mergeHistory, newId, originalIndex } from './lib/sync';
 import { Account } from './components/Account';
 import { NewPassword } from './components/NewPassword';
 import { Admin } from './components/Admin';
@@ -192,7 +192,7 @@ export function App() {
   const appeal = useCallback(
     (q: Question, category: string, argument: string, chosen: number | undefined, isSample: boolean) => {
       if (isSample || !userId) return;
-      enqueue({ kind: 'appeal', userId, appeal: { question_id: q.id, cert: q.cert, category, argument: argument.trim(), chosen_index: chosen ?? null } });
+      enqueue({ kind: 'appeal', userId, appeal: { question_id: q.id, cert: q.cert, category, argument: argument.trim(), chosen_index: originalIndex(q, chosen) } });
       void sync();
     },
     [userId, sync],
