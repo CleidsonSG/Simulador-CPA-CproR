@@ -103,10 +103,13 @@ const dq = (s) => {
 /** SQL de importação: só insert_generated_question, que grava em training_questions e em revisão. */
 export function gerarSql(lote, origem = 'agente') {
   const linhas = [
-    '-- Questões de TREINO criadas por IA. Rode no SQL Editor do Supabase logado como administrador.',
-    '-- Vão para public.training_questions, em revisão. Publique uma a uma no painel/SQL com',
-    '-- select public.publish_training_question(<id>, true);  — nunca entram no simulado.',
+    '-- Questões de TREINO criadas por IA. Rode no SQL Editor do Supabase (projeto do simulador).',
+    '-- Vão para public.training_questions, em revisão — nunca entram no simulado nem na tabela oficial.',
+    '-- O SQL Editor não tem usuário logado: as duas linhas set_config abaixo fazem is_admin() aceitar',
+    '-- as chamadas só dentro desta transação (valem até o commit).',
     'begin;',
+    "select set_config('request.jwt.claim.role', 'service_role', true);",
+    `select set_config('request.jwt.claims', '{"role":"service_role"}', true);`,
   ];
   for (const q of lote) {
     linhas.push(
@@ -114,6 +117,20 @@ export function gerarSql(lote, origem = 'agente') {
         `${dq(JSON.stringify(q.options))}::jsonb, ${q.correct_index}, ${dq(q.explanation)}, ${dq(origem)}, true);`,
     );
   }
-  linhas.push('commit;', '');
+  linhas.push(
+    'commit;',
+    '',
+    '-- Conferir o que entrou (em revisão):',
+    "-- select id, cert, topic, left(statement, 80) from public.training_questions where status = 'revisao' order by created_at desc;",
+    '',
+    '-- Publicar (depois de conferir). Uma questão: troque <id>. Ou todas as em revisão da certificação:',
+    '-- begin;',
+    "-- select set_config('request.jwt.claim.role', 'service_role', true);",
+    `-- select set_config('request.jwt.claims', '{"role":"service_role"}', true);`,
+    "-- select public.publish_training_question('<id>', true);",
+    `-- select public.publish_training_question(id, true) from public.training_questions where status = 'revisao' and cert = ${dq(lote[0]?.cert ?? 'CPA')};`,
+    '-- commit;',
+    '',
+  );
   return linhas.join('\n');
 }

@@ -59,7 +59,9 @@ description: Cria questões ORIGINAIS de treino (CPA, C-Pro R, C-Pro I — progr
    não houver erro. Avisos: corrigir quando fizer sentido.
 6. **Entrega.** Informe ao dono: quantas aprovadas/reprovadas, temas, distribuição do gabarito,
    e o caminho do `.sql`. Ele roda no SQL Editor do Supabase e publica as que quiser com
-   `select public.publish_training_question('<id>', true);`. Nada é publicado automaticamente.
+   `select public.publish_training_question('<id>', true);` — no SQL Editor não há usuário logado, então
+   a publicação vai dentro de `begin; … commit;` com as linhas `set_config(... 'service_role', true)`
+   (o `.sql` gerado já traz o bloco pronto, comentado, no fim). Nada é publicado automaticamente.
 
 ## Formato do lote (JSON)
 ```json
